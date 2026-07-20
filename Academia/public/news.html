@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academia - News & Announcements</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main-content">
+      <div class="top-bar">
+        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <h1>News & Announcements</h1>
+        <div class="top-bar-actions">
+          <button class="btn btn-primary btn-sm" id="post-news-btn" style="display:none" onclick="showModal('news-modal')">+ Post News</button>
+        </div>
+      </div>
+      <div class="content-area">
+        <div class="filter-bar">
+          <select id="news-category" onchange="loadNews()">
+            <option value="">All Categories</option>
+            <option value="announcement">Announcements</option>
+            <option value="event">Events</option>
+            <option value="update">Updates</option>
+            <option value="urgent">Urgent</option>
+          </select>
+          <input type="text" id="news-search" placeholder="Search news..." oninput="loadNews()" style="flex:1;min-width:200px">
+        </div>
+        <div class="news-grid" id="news-grid"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Post News Modal -->
+  <div class="modal-overlay" id="news-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Post News / Announcement</h2>
+        <button class="modal-close" onclick="hideModal('news-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="news-submit-hint" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;display:none">Your submission will be reviewed by an administrator before being published.</p>
+        <form onsubmit="postNews(event)">
+          <div class="form-group"><label>Title</label><input type="text" id="news-title" required></div>
+          <div class="form-group"><label>Content</label><textarea id="news-content" rows="5" required></textarea></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Category</label>
+              <select id="news-cat">
+                <option value="announcement">Announcement</option>
+                <option value="event">Event</option>
+                <option value="update">Update</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>School</label>
+              <select id="news-school">
+                <option value="">All Universities</option>
+                <option>University for Development Studies</option>
+                <option>University of Education, Winneba</option>
+                <option>Ghana Institute of Management and Public Administration</option>
+                <option>University of Mines and Technology</option>
+                <option>University of Health and Allied Sciences</option>
+                <option>University of Energy and Natural Resources</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="news-pinned"> Pin this article</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="news-submit-btn">Publish</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Article Modal -->
+  <div class="modal-overlay" id="view-news-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="article-title"></h2>
+        <button class="modal-close" onclick="hideModal('view-news-modal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="article-meta" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px"></div>
+        <div id="article-body" style="line-height:1.8"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let currentUserRole = '';
+
+    if (checkAuth()) {
+      const user = getUser();
+      currentUserRole = user.role;
+      renderSidebar('news');
+      if (user.role === 'lecturer' || user.role === 'admin') {
+        document.getElementById('post-news-btn').style.display = 'inline-flex';
+      }
+      if (user.role === 'lecturer') {
+        document.getElementById('news-submit-hint').style.display = 'block';
+        document.getElementById('news-submit-btn').textContent = 'Submit for Approval';
+      }
+      loadNews();
+    }
+
+    async function loadNews() {
+      const category = document.getElementById('news-category').value;
+      const search = document.getElementById('news-search').value;
+      const news = await apiGet(`/api/news?category=${category}&search=${encodeURIComponent(search)}`);
+      if (!news) return;
+
+      if (news.length === 0) {
+        document.getElementById('news-grid').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon"><i data-lucide="megaphone"></i></div><h3>No News</h3><p>No articles found.</p></div>';
+        lucide.createIcons();
+        return;
+      }
+
+      const icons = { announcement: '<i data-lucide="bell"></i>', event: '<i data-lucide="calendar"></i>', update: '<i data-lucide="zap"></i>', urgent: '<i data-lucide="alert-triangle"></i>' };
+      const colors = { announcement: 'var(--info)', event: 'var(--success)', update: 'var(--primary)', urgent: 'var(--danger)' };
+
+      document.getElementById('news-grid').innerHTML = news.map(n => `
+        <div class="news-card" onclick="viewArticle(${n.id})">
+          <div class="news-img" style="background:linear-gradient(135deg, ${colors[n.category]||colors.announcement}, ${colors[n.category]||colors.announcement}dd)">
+            ${icons[n.category] || icons.announcement}
+          </div>
+          <div class="news-content">
+            <div style="margin-bottom:8px">
+              <span class="badge badge-${n.category==='urgent'?'danger':n.category==='event'?'success':n.category==='update'?'purple':'primary'}">${n.category}</span>
+              ${n.is_pinned ? '<span class="badge badge-warning">Pinned</span>' : ''}
+              ${currentUserRole === 'lecturer' && n.status ? `<span class="badge badge-${n.status==='approved'?'success':n.status==='rejected'?'danger':'warning'}">${n.status}</span>` : ''}
+            </div>
+            <h3>${n.title}</h3>
+            <p>${n.content.substring(0, 120)}${n.content.length > 120 ? '...' : ''}</p>
+            <div class="news-meta">
+              <span>${n.author}</span>
+              <span>${timeAgo(n.created_at)}</span>
+              ${n.school ? schoolBadge(n.school) : ''}
+            </div>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function viewArticle(id) {
+      const article = await apiGet(`/api/news/${id}`);
+      if (!article) return;
+      document.getElementById('article-title').textContent = article.title;
+      document.getElementById('article-meta').innerHTML = `
+        <span class="badge badge-${article.category==='urgent'?'danger':'primary'}">${article.category}</span>
+        ${article.status ? `<span class="badge badge-${article.status==='approved'?'success':article.status==='rejected'?'danger':'warning'}">${article.status}</span>` : ''}
+        &middot; By ${article.author} &middot; ${formatDateTime(article.created_at)}
+        ${article.school ? '&middot; ' + schoolBadge(article.school) : ''}
+      `;
+      document.getElementById('article-body').innerHTML = article.content.replace(/\n/g, '<br>');
+      showModal('view-news-modal');
+    }
+
+    async function postNews(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('title', document.getElementById('news-title').value);
+      formData.append('content', document.getElementById('news-content').value);
+      formData.append('category', document.getElementById('news-cat').value);
+      formData.append('school', document.getElementById('news-school').value);
+      formData.append('is_pinned', document.getElementById('news-pinned').checked ? '1' : '0');
+
+      const res = await apiPostForm('/api/news', formData);
+      if (res.error) { showToast(res.error, 'error'); return; }
+      showToast(res.message || 'News submitted!', 'success');
+      hideModal('news-modal');
+      loadNews();
+    }
+
+    function showModal(id) { document.getElementById(id).classList.add('active'); }
+    function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
