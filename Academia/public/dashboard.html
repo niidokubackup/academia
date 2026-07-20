@@ -11,7 +11,7 @@
     <aside class="sidebar" id="sidebar"></aside>
     <main class="main-content">
       <div class="top-bar">
-        <button class="mobile-toggle" onclick="toggleSidebar()"><i data-lucide="menu"></i></button>
+        <button class="mobile-toggle" onclick="toggleSidebar()">&#9776;</button>
         <h1 id="page-title">Dashboard</h1>
         <div class="top-bar-actions">
           <span id="greeting" style="font-size:0.9rem;color:var(--text-secondary)"></span>
@@ -55,10 +55,9 @@
             <div class="hero-greeting">${greetingText}</div>
             <h1 class="hero-name">Welcome, <span>${firstName}</span></h1>
             <div class="hero-info">
-              ${user.school ? `<span class="info-chip">${schoolBadge(user.school)}</span>` : ''}
               <span class="info-chip">${s.department || 'Student'}</span>
               <span class="info-chip">${levelDisplay}</span>
-              ${s.matric_number ? `<span class="info-chip">${s.matric_number}</span>` : ''}
+              ${s.index_number ? `<span class="info-chip">${s.index_number}</span>` : ''}
             </div>
             <div class="hero-actions">
               <a href="/courses" class="btn btn-hero">Browse Courses</a>
@@ -69,46 +68,46 @@
 
         <div class="quick-actions">
           <a href="/courses" class="quick-action animate-fade-in-up animate-delay-1">
-            <div class="quick-action-icon" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);color:var(--info)"><i data-lucide="book-open"></i></div>
+            <div class="quick-action-icon" style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);color:var(--info)">&#128218;</div>
             <span class="quick-action-label">My Courses</span>
           </a>
           <a href="/assignments" class="quick-action animate-fade-in-up animate-delay-2">
-            <div class="quick-action-icon" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);color:var(--accent)"><i data-lucide="file-text"></i></div>
+            <div class="quick-action-icon" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);color:var(--accent)">&#128221;</div>
             <span class="quick-action-label">Assignments</span>
           </a>
           <a href="/news" class="quick-action animate-fade-in-up animate-delay-3">
-            <div class="quick-action-icon" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:var(--success)"><i data-lucide="megaphone"></i></div>
+            <div class="quick-action-icon" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:var(--success)">&#128240;</div>
             <span class="quick-action-label">News</span>
           </a>
           <a href="/calendar" class="quick-action animate-fade-in-up animate-delay-4">
-            <div class="quick-action-icon" style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);color:#7b1fa2"><i data-lucide="calendar"></i></div>
+            <div class="quick-action-icon" style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);color:#7b1fa2">&#128197;</div>
             <span class="quick-action-label">Calendar</span>
           </a>
         </div>
 
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:32px">
           <div class="glass-card-stat orange animate-fade-in-up animate-delay-1">
-            <div class="stat-icon-lg" style="background:#fff3e0;color:var(--accent)"><i data-lucide="graduation-cap"></i></div>
+            <div class="stat-icon-lg" style="background:#fff3e0;color:var(--accent)">&#127891;</div>
             <div class="stat-number">${s.enrolled_courses || 0}</div>
             <div class="stat-label">Enrolled Courses</div>
           </div>
           <div class="glass-card-stat blue animate-fade-in-up animate-delay-2">
-            <div class="stat-icon-lg" style="background:#e3f2fd;color:var(--info)"><i data-lucide="file-text"></i></div>
+            <div class="stat-icon-lg" style="background:#e3f2fd;color:var(--info)">&#128221;</div>
             <div class="stat-number">${s.pending_assignments || 0}</div>
             <div class="stat-label">Pending Assignments</div>
           </div>
           <div class="glass-card-stat red animate-fade-in-up animate-delay-3">
-            <div class="stat-icon-lg" style="background:#ffebee;color:var(--danger)"><i data-lucide="clipboard-list"></i></div>
+            <div class="stat-icon-lg" style="background:#ffebee;color:var(--danger)">&#128203;</div>
             <div class="stat-number">${s.upcoming_exams || 0}</div>
             <div class="stat-label">Upcoming Exams</div>
           </div>
           <div class="glass-card-stat green animate-fade-in-up animate-delay-4">
-            <div class="stat-icon-lg" style="background:#e8f5e9;color:var(--success)"><i data-lucide="trophy"></i></div>
+            <div class="stat-icon-lg" style="background:#e8f5e9;color:var(--success)">&#127942;</div>
             <div class="stat-number">${s.average_grade !== null ? s.average_grade + '%' : 'N/A'}</div>
             <div class="stat-label">Average Grade</div>
           </div>
           <div class="glass-card-stat purple animate-fade-in-up animate-delay-5">
-            <div class="stat-icon-lg" style="background:#f3e5f5;color:#7b1fa2"><i data-lucide="file"></i></div>
+            <div class="stat-icon-lg" style="background:#f3e5f5;color:#7b1fa2">&#128196;</div>
             <div class="stat-number">${s.course_materials || 0}</div>
             <div class="stat-label">Course Materials</div>
           </div>
@@ -211,7 +210,7 @@
                 ${s.recent_materials.map(m => {
                   const ext = m.file_path ? m.file_path.split('.').pop().toLowerCase() : '';
                   const iconClass = ['pdf'].includes(ext) ? 'pdf' : ['doc','docx','txt'].includes(ext) ? 'doc' : ['mp4','avi','mov'].includes(ext) ? 'vid' : 'other';
-                  const icons = { pdf: '<i data-lucide="file"></i>', doc: '<i data-lucide="file-text"></i>', vid: '<i data-lucide="video"></i>', other: '<i data-lucide="folder"></i>' };
+                  const icons = { pdf: '&#128196;', doc: '&#128195;', vid: '&#127909;', other: '&#128193;' };
                   return `
                     <li class="material-item">
                       <div class="material-icon ${iconClass}">${icons[iconClass] || icons.other}</div>
@@ -238,7 +237,7 @@
                 <a href="/news" class="btn btn-outline btn-sm">View All</a>
               </div>
               <div class="card-body" id="recent-news">
-                <div class="empty-state"><div class="icon"><i data-lucide="megaphone"></i></div><p>No news yet</p></div>
+                <div class="empty-state"><div class="icon">&#128240;</div><p>No news yet</p></div>
               </div>
             </div>
           </div>
@@ -249,7 +248,7 @@
                 <a href="/calendar" class="btn btn-outline btn-sm">Calendar</a>
               </div>
               <div class="card-body" id="upcoming-events">
-                <div class="empty-state"><div class="icon"><i data-lucide="calendar"></i></div><p>No events</p></div>
+                <div class="empty-state"><div class="icon">&#128197;</div><p>No events</p></div>
               </div>
             </div>
           </div>
@@ -286,21 +285,21 @@
       const s = data.stats;
       document.getElementById('content-area').innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-icon blue"><i data-lucide="book-open"></i></div><div class="stat-info"><h3>${s.assigned_courses||0}</h3><p>Assigned Courses</p></div></div>
-          <div class="stat-card"><div class="stat-icon green"><i data-lucide="users"></i></div><div class="stat-info"><h3>${s.total_students||0}</h3><p>Total Students</p></div></div>
-          <div class="stat-card"><div class="stat-icon orange"><i data-lucide="file-text"></i></div><div class="stat-info"><h3>${s.pending_grading||0}</h3><p>Pending Grading</p></div></div>
+          <div class="stat-card"><div class="stat-icon blue">&#128218;</div><div class="stat-info"><h3>${s.assigned_courses||0}</h3><p>Assigned Courses</p></div></div>
+          <div class="stat-card"><div class="stat-icon green">&#128101;</div><div class="stat-info"><h3>${s.total_students||0}</h3><p>Total Students</p></div></div>
+          <div class="stat-card"><div class="stat-icon orange">&#128221;</div><div class="stat-info"><h3>${s.pending_grading||0}</h3><p>Pending Grading</p></div></div>
         </div>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px">
           <div>
             <div class="card">
               <div class="card-header"><h2>Latest News</h2><a href="/news" class="btn btn-outline btn-sm">View All</a></div>
-              <div class="card-body" id="recent-news"><div class="empty-state"><div class="icon"><i data-lucide="megaphone"></i></div><p>No news yet</p></div></div>
+              <div class="card-body" id="recent-news"><div class="empty-state"><div class="icon">&#128240;</div><p>No news yet</p></div></div>
             </div>
           </div>
           <div>
             <div class="card">
               <div class="card-header"><h2>Upcoming Events</h2><a href="/calendar" class="btn btn-outline btn-sm">Calendar</a></div>
-              <div class="card-body" id="upcoming-events"><div class="empty-state"><div class="icon"><i data-lucide="calendar"></i></div><p>No events</p></div></div>
+              <div class="card-body" id="upcoming-events"><div class="empty-state"><div class="icon">&#128197;</div><p>No events</p></div></div>
             </div>
           </div>
         </div>
@@ -312,22 +311,22 @@
       const s = data.stats;
       document.getElementById('content-area').innerHTML = `
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-icon blue"><i data-lucide="users"></i></div><div class="stat-info"><h3>${s.total_students||0}</h3><p>Students</p></div></div>
-          <div class="stat-card"><div class="stat-icon green"><i data-lucide="briefcase"></i></div><div class="stat-info"><h3>${s.total_lecturers||0}</h3><p>Lecturers</p></div></div>
-          <div class="stat-card"><div class="stat-icon orange"><i data-lucide="book-open"></i></div><div class="stat-info"><h3>${s.total_courses||0}</h3><p>Courses</p></div></div>
-          <div class="stat-card"><div class="stat-icon purple"><i data-lucide="file"></i></div><div class="stat-info"><h3>${s.total_materials||0}</h3><p>Materials</p></div></div>
+          <div class="stat-card"><div class="stat-icon blue">&#128101;</div><div class="stat-info"><h3>${s.total_students||0}</h3><p>Students</p></div></div>
+          <div class="stat-card"><div class="stat-icon green">&#128104;&#8205;&#127979;</div><div class="stat-info"><h3>${s.total_lecturers||0}</h3><p>Lecturers</p></div></div>
+          <div class="stat-card"><div class="stat-icon orange">&#128218;</div><div class="stat-info"><h3>${s.total_courses||0}</h3><p>Courses</p></div></div>
+          <div class="stat-card"><div class="stat-icon purple">&#128196;</div><div class="stat-info"><h3>${s.total_materials||0}</h3><p>Materials</p></div></div>
         </div>
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:24px">
           <div>
             <div class="card">
               <div class="card-header"><h2>Latest News</h2><a href="/news" class="btn btn-outline btn-sm">View All</a></div>
-              <div class="card-body" id="recent-news"><div class="empty-state"><div class="icon"><i data-lucide="megaphone"></i></div><p>No news yet</p></div></div>
+              <div class="card-body" id="recent-news"><div class="empty-state"><div class="icon">&#128240;</div><p>No news yet</p></div></div>
             </div>
           </div>
           <div>
             <div class="card">
               <div class="card-header"><h2>Upcoming Events</h2><a href="/calendar" class="btn btn-outline btn-sm">Calendar</a></div>
-              <div class="card-body" id="upcoming-events"><div class="empty-state"><div class="icon"><i data-lucide="calendar"></i></div><p>No events</p></div></div>
+              <div class="card-body" id="upcoming-events"><div class="empty-state"><div class="icon">&#128197;</div><p>No events</p></div></div>
             </div>
           </div>
         </div>
@@ -366,7 +365,5 @@
       return 'Good evening';
     }
   </script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script>lucide.createIcons();</script>
 </body>
 </html>
