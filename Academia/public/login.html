@@ -5,207 +5,317 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Academia - Login</title>
   <link rel="stylesheet" href="/css/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #c5c0c0 0%, #fcfcfc 40%, #cad0f7 100%);
-      padding: 20px;
+      background: linear-gradient(135deg, #e8eaf6 0%, #f5f5f5 40%, #e3f2fd 100%);
       overflow: hidden;
+      position: relative;
     }
 
-    .bg-shapes {
+    .bg-orbs {
       position: fixed;
       inset: 0;
       pointer-events: none;
-      overflow: hidden;
+      z-index: 0;
     }
-    .bg-shapes div {
+
+    .orb {
       position: absolute;
       border-radius: 50%;
-      opacity: 0.06;
-      background: rgba(255, 255, 255, 0.644);
+      filter: blur(80px);
+      animation: orbFloat 20s ease-in-out infinite;
     }
-    .bg-shapes .s1 { width: 400px; height: 400px; top: -100px; right: -100px; }
-    .bg-shapes .s2 { width: 300px; height: 300px; bottom: -80px; left: -80px; }
-    .bg-shapes .s3 { width: 200px; height: 200px; top: 40%; left: 60%; }
+
+    .orb-1 {
+      width: 400px; height: 400px;
+      background: rgba(59,130,246,0.08);
+      top: -10%; left: -5%;
+      animation-delay: 0s;
+    }
+
+    .orb-2 {
+      width: 350px; height: 350px;
+      background: rgba(139,92,246,0.08);
+      bottom: -10%; right: -5%;
+      animation-delay: -7s;
+    }
+
+    .orb-3 {
+      width: 250px; height: 250px;
+      background: rgba(249,115,22,0.06);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation-delay: -14s;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(30px, -40px) scale(1.05); }
+      50% { transform: translate(-20px, 20px) scale(0.95); }
+      75% { transform: translate(40px, 30px) scale(1.02); }
+    }
 
     .login-wrapper {
       width: 100%;
-      max-width: 420px;
+      max-width: 440px;
       position: relative;
       z-index: 1;
+      padding: 20px;
+      animation: wrapperIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
     }
 
+    @keyframes wrapperIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Brand */
     .brand {
       text-align: center;
-      margin-bottom: 28px;
-      color: white;
+      margin-bottom: 32px;
     }
+
     .brand-logos {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
-      margin-bottom: 12px;
-    }
-    .brand-logos img {
-      height: 70px;
-      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
-      transition: transform 0.3s;
-    }
-    .brand-logos img:hover {
-      transform: scale(1.05);
-    }
-    .brand-logos img.logo-main {
-      height: 80px;
-    }
-    .brand h1 {
-      font-size: 2.4rem;
-      font-weight: 800;
-      letter-spacing: 3px;
-    }
-    .brand h1 span { color: #ffa040; }
-    .brand p {
-      font-size: 0.88rem;
-      color: var(--text-secondary);
-      margin-top: 4px;
+      gap: 14px;
+      margin-bottom: 20px;
     }
 
+    .brand-logos img {
+      height: 56px;
+      filter: drop-shadow(0 4px 20px rgba(59,130,246,0.2));
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .brand-logos img:hover { transform: scale(1.08) rotate(-2deg); }
+    .brand-logos img.logo-main { height: 68px; }
+
+    .brand h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #1a237e;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Login Card */
     .login-card {
-      background: white;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      background: rgba(255,255,255,0.55);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-radius: 20px;
       overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.06);
+      transition: box-shadow 0.4s;
+    }
+
+    .login-card:focus-within {
+      box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 0 0 2px rgba(26,35,126,0.12);
     }
 
     /* Flip Toggle */
     .flip-toggle {
       display: flex;
       position: relative;
-      background: #f0f0f0;
+      background: #f1f5f9;
       margin: 0;
-      padding: 0;
+      padding: 4px;
+      gap: 4px;
     }
+
     .flip-toggle-bg {
       position: absolute;
       top: 4px;
       left: 4px;
-      width: calc(50% - 4px);
+      width: calc(50% - 6px);
       height: calc(100% - 8px);
-      background: var(--primary);
-      border-radius: 10px;
-      transition: transform 0.4s cubic-bezier(0.68, -0.15, 0.27, 1.15);
-      box-shadow: 0 2px 8px rgba(7, 28, 255, 0.637);
+      background: linear-gradient(135deg, #1a237e, #3949ab);
+      border-radius: 12px;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 20px rgba(26,35,126,0.3);
       z-index: 0;
     }
+
     .flip-toggle-bg.staff-active {
       transform: translateX(100%);
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      box-shadow: 0 4px 20px rgba(139,92,246,0.3);
     }
+
     .flip-btn {
       flex: 1;
       padding: 14px 0;
       text-align: center;
       cursor: pointer;
       font-weight: 700;
-      font-size: 0.88rem;
+      font-size: 0.82rem;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
       position: relative;
       z-index: 1;
       transition: color 0.3s;
-      color: #dfdbdbc7;
+      color: #94a3b8;
       user-select: none;
-    }
-    .flip-btn.active {
-      color: white;
-    }
-    .flip-btn .flip-icon {
-      display: block;
-      font-size: 1.3rem;
-      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 12px;
     }
 
-    /* Card body with flip animation */
+    .flip-btn.active { color: white; }
+    .flip-btn:hover:not(.active) { color: #64748b; }
+
+    .flip-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+    }
+
+    /* Card body */
     .card-body {
       position: relative;
       overflow: hidden;
     }
+
     .form-panel {
-      padding: 28px 28px 24px;
-      transition: opacity 0.3s, transform 0.4s;
-    }
-    .form-panel.flip-out-up {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    .form-panel.flip-out-down {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    .form-panel.flip-in {
-      opacity: 1;
-      transform: translateY(0);
+      padding: 32px 28px 28px;
+      transition: opacity 0.7s, transform 0.4s;
     }
 
+    .form-panel.flip-out-up { opacity: 0; transform: translateY(-20px); }
+    .form-panel.flip-out-down { opacity: 0; transform: translateY(20px); }
+    .form-panel.flip-in { opacity: 1; transform: translateY(0); }
+
+    /* Portal badge */
     .portal-badge {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 14px;
-      border-radius: 20px;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 10px;
       font-size: 0.75rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 18px;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
     }
-    .portal-badge.student { background: #e3f2fd; color: #0277bd; }
-    .portal-badge.staff { background: #f3e5f5; color: #02afff; }
 
-    .portal-badge .lock-icon { font-size: 0.85rem; }
+    .portal-badge svg {
+      width: 14px;
+      height: 14px;
+      stroke-width: 2.5;
+    }
+
+    .portal-badge.student {
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #bbdefb;
+    }
+
+    .portal-badge.staff {
+      background: #ede7f6;
+      color: #7b1fa2;
+      border: 1px solid #d1c4e9;
+    }
 
     .form-panel h3 {
-      font-size: 1.15rem;
+      font-size: 1.3rem;
       color: #1a237e;
-      margin-bottom: 18px;
+      margin-bottom: 24px;
+      font-weight: 700;
     }
 
+    /* Floating input */
     .input-group {
-      margin-bottom: 16px;
+      margin-bottom: 20px;
     }
+
     .input-group label {
       display: block;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      color: #616161;
-      margin-bottom: 5px;
+      color: #64748b;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
+
     .input-wrap {
       position: relative;
     }
+
+    .input-wrap svg {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      color: #94a3b8;
+      pointer-events: none;
+      transition: color 0.3s;
+      stroke-width: 1.8;
+    }
+
     .input-wrap input,
     .input-wrap select {
       width: 100%;
-      padding: 12px 14px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
+      padding: 14px 14px 14px 44px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
       font-size: 0.95rem;
-      transition: border-color 0.3s, box-shadow 0.3s;
-      background: white;
-      color: #212121;
+      transition: all 0.3s;
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: inherit;
     }
+
+    .input-wrap input::placeholder { color: #94a3b8; }
+
     .input-wrap input:focus,
     .input-wrap select:focus {
       outline: none;
       border-color: #1a237e;
-      box-shadow: 0 0 0 3px rgba(26,35,126,0.1);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(26,35,126,0.08);
     }
-    .input-wrap input::placeholder { color: #bbb; }
+
+    .input-wrap.staff-focused input:focus,
+    .input-wrap.staff-focused select:focus {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 0 4px rgba(139,92,246,0.1);
+    }
+
+    .input-wrap input:focus + svg,
+    .input-wrap input:focus ~ svg {
+      color: #1a237e;
+    }
+
+    .input-wrap select {
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .input-wrap select option {
+      background: white;
+      color: #1e293b;
+    }
+
     .input-wrap .eye-toggle {
       position: absolute;
       right: 12px;
@@ -214,109 +324,192 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 1.1rem;
-      opacity: 0.4;
-      transition: opacity 0.2s;
+      padding: 4px;
+      color: #94a3b8;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
     }
-    .input-wrap .eye-toggle:hover { opacity: 1; }
+
+    .input-wrap .eye-toggle:hover { color: #334155; }
+
+    .input-wrap .eye-toggle svg {
+      position: static;
+      transform: none;
+      pointer-events: auto;
+      width: 18px;
+      height: 18px;
+    }
 
     .input-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 14px;
     }
 
+    /* Submit button */
     .submit-btn {
       width: 100%;
-      padding: 13px;
+      padding: 14px;
       border: none;
-      border-radius: 8px;
-      font-size: 1rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.3s;
-      margin-top: 4px;
+      margin-top: 8px;
       letter-spacing: 0.5px;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      font-family: inherit;
     }
+
+    .submit-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .submit-btn:hover::before { opacity: 1; }
+
     .submit-btn.student-btn {
       background: linear-gradient(135deg, #1a237e, #3949ab);
       color: white;
+      box-shadow: 0 4px 20px rgba(26,35,126,0.25);
     }
-    .submit-btn.staff-btn {
-      background: linear-gradient(135deg, #5081eb, #02afff);
-      color: white;
-    }
-    .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
+    .submit-btn.student-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(26,35,126,0.35);
+    }
+
+    .submit-btn.staff-btn {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.25);
+    }
+
+    .submit-btn.staff-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(139,92,246,0.35);
+    }
+
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .submit-btn svg {
+      width: 18px;
+      height: 18px;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+      stroke-width: 2.2;
+    }
+
+    /* Switch mode link */
     .switch-mode {
       text-align: center;
-      margin-top: 16px;
+      margin-top: 20px;
       font-size: 0.85rem;
-      color: #888;
+      color: #94a3b8;
     }
+
     .switch-mode a {
-      color: #0f20db;
+      color: #1a237e;
       font-weight: 600;
       cursor: pointer;
       text-decoration: none;
+      transition: color 0.2s;
     }
-    .switch-mode a:hover { text-decoration: underline; }
 
+    .switch-mode a:hover { color: #3949ab; text-decoration: underline; }
+
+    .switch-mode.staff-link a {
+      color: #7b1fa2;
+    }
+
+    .switch-mode.staff-link a:hover {
+      color: #9c27b0;
+    }
+
+    /* Error box */
     .error-box {
       background: #ffebee;
+      border: 1px solid #ffcdd2;
       color: #c62828;
-      padding: 10px 14px;
-      border-radius: 8px;
-      margin-bottom: 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
       font-size: 0.85rem;
       display: none;
+      align-items: center;
+      gap: 10px;
     }
 
+    .error-box svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      stroke-width: 2;
+    }
+
+    /* Password strength */
     .password-strength {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 6px;
+      margin-top: 8px;
     }
+
     .strength-track {
       flex: 1;
-      height: 4px;
-      background: #e0e0e0;
+      height: 3px;
+      background: #e2e8f0;
       border-radius: 2px;
       overflow: hidden;
     }
+
     .strength-fill {
       height: 100%;
       border-radius: 2px;
       transition: width 0.3s, background 0.3s;
     }
+
     .strength-label {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       min-width: 80px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
+    /* Footer */
     .card-footer {
       text-align: center;
-      padding: 12px;
-      border-top: 1px solid rgba(255,255,255,0.4);
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      backdrop-filter: blur(10px);
+      padding: 16px;
+      font-size: 0.72rem;
+      color: #94a3b8;
+      letter-spacing: 0.5px;
     }
 
+    /* Responsive */
     @media (max-width: 480px) {
-      .login-wrapper { max-width: 100%; }
-      .form-panel { padding: 22px 20px 20px; }
+      .login-wrapper { max-width: 100%; padding: 16px; }
+      .form-panel { padding: 24px 20px 20px; }
+      .brand h1 { font-size: 0.85rem; letter-spacing: 2px; }
     }
   </style>
 </head>
 <body>
-  <div class="bg-shapes">
-    <div class="s1"></div>
-    <div class="s2"></div>
-    <div class="s3"></div>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
   </div>
 
   <div class="login-wrapper">
@@ -325,18 +518,18 @@
         <img src="/images/logos/logo1.png" alt="Logo" class="logo-secondary">
         <img src="/images/logos/logo2.png" alt="Academia" class="logo-main">  
       </div>
-      <h1>Student Information Management System</h1>
+      <h1>Student Information Management</h1>
     </div>
 
     <div class="login-card">
       <div class="flip-toggle" id="flip-toggle">
         <div class="flip-toggle-bg" id="toggle-bg"></div>
         <div class="flip-btn active" id="btn-student" onclick="flipTo('student')">
-          <span class="flip-icon">&#127891;</span>
+          <i data-lucide="graduation-cap"></i>
           Student
         </div>
         <div class="flip-btn" id="btn-staff" onclick="flipTo('staff')">
-          <span class="flip-icon">&#128104;&#8205;&#127979;</span>
+          <i data-lucide="briefcase"></i>
           Staff
         </div>
       </div>
@@ -345,49 +538,73 @@
 
         <!-- STUDENT LOGIN -->
         <div class="form-panel flip-in" id="panel-student-login">
-          <div class="portal-badge student"><span class="lock-icon">&#128274;</span> Student Portal</div>
-          <div class="error-box" id="s-err"></div>
+          <div class="portal-badge student"><i data-lucide="shield-check"></i> Student Portal</div>
+          <div class="error-box" id="s-err">
+            <i data-lucide="alert-circle"></i>
+            <span></span>
+          </div>
           <form onsubmit="studentLogin(event)">
             <div class="input-group">
-              <label>Email / index number</label>
+              <label>Email / Index Number</label>
               <div class="input-wrap">
                 <input type="text" id="s-email" placeholder="you@email.com or matric no." required autocomplete="username">
+                <i data-lucide="mail"></i>
               </div>
             </div>
             <div class="input-group">
               <label>Password</label>
               <div class="input-wrap">
                 <input type="password" id="s-pass" placeholder="Enter password" required autocomplete="current-password">
-                <button type="button" class="eye-toggle" onclick="showHide('s-pass')">&#128065;</button>
+                <i data-lucide="lock"></i>
+                <button type="button" class="eye-toggle" onclick="showHide('s-pass', this)">
+                  <i data-lucide="eye"></i>
+                </button>
               </div>
             </div>
-            <button type="submit" class="submit-btn student-btn" id="s-btn">log In</button>
+            <button type="submit" class="submit-btn student-btn" id="s-btn">
+              <i data-lucide="log-in"></i>Sign In
+            </button>
           </form>
           <div class="switch-mode">New student? <a onclick="flipForm('student-register')">Create Account</a></div>
         </div>
 
         <!-- STUDENT REGISTER -->
         <div class="form-panel" id="panel-student-register" style="display:none">
-          <div class="portal-badge student">&#127891; Student Registration</div>
-          <div class="error-box" id="sr-err"></div>
+          <div class="portal-badge student"><i data-lucide="user-plus"></i> Student Registration</div>
+          <div class="error-box" id="sr-err">
+            <i data-lucide="alert-circle"></i>
+            <span></span>
+          </div>
           <form onsubmit="studentRegister(event)">
             <div class="input-group">
               <label>Full Name</label>
-              <div class="input-wrap"><input type="text" id="sr-name" placeholder="John Doe" required></div>
+              <div class="input-wrap">
+                <input type="text" id="sr-name" placeholder="John Doe" required>
+                <i data-lucide="user"></i>
+              </div>
             </div>
             <div class="input-group">
               <label>Email</label>
-              <div class="input-wrap"><input type="email" id="sr-email" placeholder="you@email.com" required></div>
+              <div class="input-wrap">
+                <input type="email" id="sr-email" placeholder="you@email.com" required>
+                <i data-lucide="mail"></i>
+              </div>
             </div>
             <div class="input-group">
               <label>Index Number</label>
-              <div class="input-wrap"><input type="text" id="sr-matric" placeholder="e.g. 20240001" required></div>
+              <div class="input-wrap">
+                <input type="text" id="sr-matric" placeholder="e.g. 20240001" required>
+                <i data-lucide="hash"></i>
+              </div>
             </div>
             <div class="input-group">
               <label>Password</label>
               <div class="input-wrap">
                 <input type="password" id="sr-pass" placeholder="Min 6 characters" required minlength="6" oninput="strength(this.value,'sr-str')">
-                <button type="button" class="eye-toggle" onclick="showHide('sr-pass')">&#128065;</button>
+                <i data-lucide="lock"></i>
+                <button type="button" class="eye-toggle" onclick="showHide('sr-pass', this)">
+                  <i data-lucide="eye"></i>
+                </button>
               </div>
               <div class="password-strength" id="sr-str"></div>
             </div>
@@ -402,6 +619,7 @@
                     <option>School of Education</option><option>School of Agriculture</option>
                     <option>School of Environmental Sciences</option><option>School of Social Sciences</option>
                   </select>
+                  <i data-lucide="building-2"></i>
                 </div>
               </div>
               <div class="input-group">
@@ -411,74 +629,102 @@
                     <option value="L100">100</option><option value="L200">200</option>
                     <option value="L300">300</option><option value="L400">400</option>
                   </select>
+                  <i data-lucide="layers"></i>
                 </div>
               </div>
             </div>
             <div class="input-group">
               <label>Department</label>
-              <div class="input-wrap"><input type="text" id="sr-dept" placeholder="e.g. Computer Science"></div>
+              <div class="input-wrap">
+                <input type="text" id="sr-dept" placeholder="e.g. Computer Science">
+                <i data-lucide="book-open"></i>
+              </div>
             </div>
-            <button type="submit" class="submit-btn student-btn" id="sr-btn">Create Account</button>
+            <button type="submit" class="submit-btn student-btn" id="sr-btn">
+              <i data-lucide="user-plus"></i>Create Account
+            </button>
           </form>
-          <div class="switch-mode">Already have an account? <a onclick="flipForm('student-login')">log In</a></div>
+          <div class="switch-mode">Already have an account? <a onclick="flipForm('student-login')">Sign In</a></div>
         </div>
 
         <!-- STAFF LOGIN -->
         <div class="form-panel" id="panel-staff-login" style="display:none">
-          <div class="portal-badge staff"><span class="lock-icon">&#128274;</span> Staff Portal</div>
-          <div class="error-box" id="st-err"></div>
+          <div class="portal-badge staff"><i data-lucide="shield-check"></i> Staff Portal</div>
+          <div class="error-box" id="st-err">
+            <i data-lucide="alert-circle"></i>
+            <span></span>
+          </div>
           <form onsubmit="staffLogin(event)">
             <div class="input-group">
               <label>Email Address</label>
-              <div class="input-wrap">
+              <div class="input-wrap staff-focused">
                 <input type="email" id="st-email" placeholder="you@email.com" required autocomplete="username">
+                <i data-lucide="mail"></i>
               </div>
             </div>
             <div class="input-group">
               <label>Password</label>
-              <div class="input-wrap">
+              <div class="input-wrap staff-focused">
                 <input type="password" id="st-pass" placeholder="Enter password" required autocomplete="current-password">
-                <button type="button" class="eye-toggle" onclick="showHide('st-pass')">&#128065;</button>
+                <i data-lucide="lock"></i>
+                <button type="button" class="eye-toggle" onclick="showHide('st-pass', this)">
+                  <i data-lucide="eye"></i>
+                </button>
               </div>
             </div>
-            <button type="submit" class="submit-btn staff-btn" id="st-btn">log In</button>
+            <button type="submit" class="submit-btn staff-btn" id="st-btn">
+              <i data-lucide="log-in"></i>Sign In
+            </button>
           </form>
-          <div class="switch-mode">New staff? <a onclick="flipForm('staff-register')">Create Account</a></div>
+          <div class="switch-mode staff-link">New staff? <a onclick="flipForm('staff-register')">Create Account</a></div>
         </div>
 
         <!-- STAFF REGISTER -->
         <div class="form-panel" id="panel-staff-register" style="display:none">
-          <div class="portal-badge staff">&#128104;&#8205;&#127979; Staff Registration</div>
-          <div class="error-box" id="str-err"></div>
+          <div class="portal-badge staff"><i data-lucide="user-plus"></i> Staff Registration</div>
+          <div class="error-box" id="str-err">
+            <i data-lucide="alert-circle"></i>
+            <span></span>
+          </div>
           <form onsubmit="staffRegister(event)">
             <div class="input-group">
               <label>Full Name</label>
-              <div class="input-wrap"><input type="text" id="str-name" placeholder="Dr. John Smith" required></div>
+              <div class="input-wrap staff-focused">
+                <input type="text" id="str-name" placeholder="Dr. John Smith" required>
+                <i data-lucide="user"></i>
+              </div>
             </div>
             <div class="input-group">
               <label>Email</label>
-              <div class="input-wrap"><input type="email" id="str-email" placeholder="you@email.com" required></div>
+              <div class="input-wrap staff-focused">
+                <input type="email" id="str-email" placeholder="you@email.com" required>
+                <i data-lucide="mail"></i>
+              </div>
             </div>
             <div class="input-group">
               <label>Password</label>
-              <div class="input-wrap">
+              <div class="input-wrap staff-focused">
                 <input type="password" id="str-pass" placeholder="Min 6 characters" required minlength="6" oninput="strength(this.value,'str-str')">
-                <button type="button" class="eye-toggle" onclick="showHide('str-pass')">&#128065;</button>
+                <i data-lucide="lock"></i>
+                <button type="button" class="eye-toggle" onclick="showHide('str-pass', this)">
+                  <i data-lucide="eye"></i>
+                </button>
               </div>
               <div class="password-strength" id="str-str"></div>
             </div>
             <div class="input-group">
               <label>Role</label>
-              <div class="input-wrap">
+              <div class="input-wrap staff-focused">
                 <select id="str-role">
                   <option value="lecturer">Lecturer</option>
                   <option value="admin">Administrator</option>
                 </select>
+                <i data-lucide="briefcase"></i>
               </div>
             </div>
             <div class="input-group">
               <label>School</label>
-              <div class="input-wrap">
+              <div class="input-wrap staff-focused">
                 <select id="str-school" required>
                   <option value="">Select</option>
                   <option>School of Engineering</option><option>School of Sciences</option><option>School of Arts</option>
@@ -486,24 +732,32 @@
                   <option>School of Education</option><option>School of Agriculture</option>
                   <option>School of Environmental Sciences</option><option>School of Social Sciences</option>
                 </select>
+                <i data-lucide="building-2"></i>
               </div>
             </div>
             <div class="input-group">
               <label>Department</label>
-              <div class="input-wrap"><input type="text" id="str-dept" placeholder="e.g. Computer Science"></div>
+              <div class="input-wrap staff-focused">
+                <input type="text" id="str-dept" placeholder="e.g. Computer Science">
+                <i data-lucide="book-open"></i>
+              </div>
             </div>
-            <button type="submit" class="submit-btn staff-btn" id="str-btn">Create Account</button>
+            <button type="submit" class="submit-btn staff-btn" id="str-btn">
+              <i data-lucide="user-plus"></i>Create Account
+            </button>
           </form>
-          <div class="switch-mode">Already have an account? <a onclick="flipForm('staff-login')">Sign In</a></div>
+          <div class="switch-mode staff-link">Already have an account? <a onclick="flipForm('staff-login')">Sign In</a></div>
         </div>
 
       </div>
 
-      <div class="card-footer"></div>
+      <div class="card-footer">Secured with end-to-end encryption</div>
     </div>
   </div>
 
   <script>
+    lucide.createIcons();
+
     const user = localStorage.getItem('user');
     if (user) window.location.href = '/dashboard';
 
@@ -579,9 +833,14 @@
       }, 250);
     }
 
-    function showHide(id) {
+    function showHide(id, btn) {
       const el = document.getElementById(id);
-      el.type = el.type === 'password' ? 'text' : 'password';
+      const isPassword = el.type === 'password';
+      el.type = isPassword ? 'text' : 'password';
+
+      const icon = btn.querySelector('i');
+      icon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
+      lucide.createIcons();
     }
 
     function strength(val, id) {
@@ -594,11 +853,11 @@
       if (/[0-9]/.test(val)) s++;
       if (/[^A-Za-z0-9]/.test(val)) s++;
       const levels = [
-        { l: 'Very Weak', c: '#c62828', w: '20%' },
-        { l: 'Weak', c: '#e65100', w: '40%' },
-        { l: 'Fair', c: '#f57f17', w: '60%' },
-        { l: 'Strong', c: '#2e7d32', w: '80%' },
-        { l: 'Very Strong', c: '#1b5e20', w: '100%' }
+        { l: 'Very Weak', c: '#ef4444', w: '20%' },
+        { l: 'Weak', c: '#f97316', w: '40%' },
+        { l: 'Fair', c: '#eab308', w: '60%' },
+        { l: 'Strong', c: '#22c55e', w: '80%' },
+        { l: 'Very Strong', c: '#10b981', w: '100%' }
       ];
       const lv = levels[Math.min(s, 4)];
       el.innerHTML = `<div class="strength-track"><div class="strength-fill" style="width:${lv.w};background:${lv.c}"></div></div><span class="strength-label" style="color:${lv.c}">${lv.l}</span>`;
@@ -606,8 +865,10 @@
 
     function showErr(id, msg) {
       const el = document.getElementById(id);
-      el.textContent = msg;
-      el.style.display = 'block';
+      const span = el.querySelector('span');
+      if (span) span.textContent = msg;
+      else el.textContent = msg;
+      el.style.display = 'flex';
       setTimeout(() => el.style.display = 'none', 8000);
     }
 
@@ -651,7 +912,7 @@
         localStorage.setItem('token', d.token);
         window.location.href = '/dashboard';
       } catch (err) { showErr('s-err', err.message); }
-      finally { btn.textContent = 'Sign In'; btn.disabled = false; }
+      finally { btn.innerHTML = '<i data-lucide="log-in"></i>Sign In'; btn.disabled = false; lucide.createIcons(); }
     }
 
     async function staffLogin(e) {
@@ -673,7 +934,7 @@
         localStorage.setItem('token', d.token);
         window.location.href = '/dashboard';
       } catch (err) { showErr('st-err', err.message); }
-      finally { btn.textContent = 'Sign In'; btn.disabled = false; }
+      finally { btn.innerHTML = '<i data-lucide="log-in"></i>Sign In'; btn.disabled = false; lucide.createIcons(); }
     }
 
     async function studentRegister(e) {
@@ -701,7 +962,7 @@
         localStorage.setItem('token', d.token);
         window.location.href = '/dashboard';
       } catch (err) { showErr('sr-err', err.message); }
-      finally { btn.textContent = 'Create Account'; btn.disabled = false; }
+      finally { btn.innerHTML = '<i data-lucide="user-plus"></i>Create Account'; btn.disabled = false; lucide.createIcons(); }
     }
 
     async function staffRegister(e) {
@@ -727,7 +988,7 @@
         localStorage.setItem('token', d.token);
         window.location.href = '/dashboard';
       } catch (err) { showErr('str-err', err.message); }
-      finally { btn.textContent = 'Create Account'; btn.disabled = false; }
+      finally { btn.innerHTML = '<i data-lucide="user-plus"></i>Create Account'; btn.disabled = false; lucide.createIcons(); }
     }
   </script>
 </body>
