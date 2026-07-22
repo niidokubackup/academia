@@ -3,6 +3,15 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
 const { authorizeRoles } = require('../middleware/auth');
+const {
+  sanitizeText,
+  validateCourseLevel,
+  validateSemester,
+  validateCategory,
+  normalizeText,
+  logAudit,
+  handleDbError
+} = require('../utils/security');
 
 const router = express.Router();
 
@@ -95,40 +104,60 @@ router.get('/browse', (req, res) => {
 router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('file'), (req, res) => {
   try {
     const { course_id, title, description, level, semester, academic_year, category } = req.body;
+    const safeTitle = sanitizeText(title);
+    const safeDescription = sanitizeText(description);
+    const safeLevel = normalizeText(level);
+    const safeSemester = normalizeText(semester);
+    const safeAcademicYear = normalizeText(academic_year) || '2025/2026';
+    const safeCategory = normalizeText(category) || 'other';
+    const courseId = Number(course_id);
     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
     const fileType = req.file ? req.file.mimetype : null;
 
+    if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course reference.' });
+    if (!safeTitle) return res.status(400).json({ error: 'Material title is required.' });
+    if (!validateCourseLevel(safeLevel)) return res.status(400).json({ error: 'Invalid course level.' });
+    if (!validateSemester(safeSemester)) return res.status(400).json({ error: 'Invalid semester.' });
+    if (!validateCategory(safeCategory)) return res.status(400).json({ error: 'Invalid material category.' });
+
     const result = db.prepare(
       'INSERT INTO materials (course_id, title, description, file_path, file_type, uploaded_by, level, semester, academic_year, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(course_id, title, description, filePath, fileType, req.user.id, level, semester, academic_year, category || 'other');
+    ).run(courseId, safeTitle, safeDescription, filePath, fileType, req.user.id, safeLevel, safeSemester, safeAcademicYear, safeCategory);
 
+    logAudit('upload_material', { courseId, title: safeTitle }, req.user.id);
     res.json({ message: 'Material uploaded successfully', id: result.lastInsertRowid });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to upload material');
   }
 });
 
 router.post('/enroll', authorizeRoles('student'), (req, res) => {
   try {
     const { course_id } = req.body;
-    const course = db.prepare("SELECT id, status FROM courses WHERE id = ?").get(course_id);
+    const courseId = Number(course_id);
+    if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
+    const course = db.prepare("SELECT id, status FROM courses WHERE id = ?").get(courseId);
     if (!course || course.status !== 'published') {
       return res.status(400).json({ error: 'Course is not available for registration.' });
     }
-    db.prepare('INSERT OR IGNORE INTO enrollments (student_id, course_id) VALUES (?, ?)').run(req.user.id, course_id);
+    db.prepare('INSERT OR IGNORE INTO enrollments (student_id, course_id) VALUES (?, ?)').run(req.user.id, courseId);
+    logAudit('enroll_course', { courseId }, req.user.id);
     res.json({ message: 'Enrolled successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to enroll in course');
   }
 });
 
 router.post('/unenroll', authorizeRoles('student'), (req, res) => {
   try {
     const { course_id } = req.body;
-    db.prepare('DELETE FROM enrollments WHERE student_id = ? AND course_id = ?').run(req.user.id, course_id);
+    const courseId = Number(course_id);
+    if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
+    db.prepare('DELETE FROM enrollments WHERE student_id = ? AND course_id = ?').run(req.user.id, courseId);
+    logAudit('unenroll_course', { courseId }, req.user.id);
     res.json({ message: 'Unenrolled successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to unenroll from course');
   }
 });
 

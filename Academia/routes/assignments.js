@@ -3,6 +3,12 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
 const { authorizeRoles } = require('../middleware/auth');
+const {
+  sanitizeText,
+  normalizeText,
+  logAudit,
+  handleDbError
+} = require('../utils/security');
 
 const router = express.Router();
 
@@ -98,47 +104,76 @@ router.get('/midsems', (req, res) => {
 router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('attachment'), (req, res) => {
   try {
     const { course_id, title, description, due_date, total_marks } = req.body;
+    const safeTitle = sanitizeText(title);
+    const safeDescription = sanitizeText(description);
+    const courseId = Number(course_id);
+    const dueDate = normalizeText(due_date);
+    const totalMarks = Number(total_marks || 100);
     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
+    if (!safeTitle || !dueDate) return res.status(400).json({ error: 'Assignment title and due date are required.' });
+    if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
     const result = db.prepare(
       'INSERT INTO assignments (course_id, title, description, due_date, total_marks, attachment_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(course_id, title, description, due_date, total_marks || 100, filePath, req.user.id);
+    ).run(courseId, safeTitle, safeDescription, dueDate, totalMarks, filePath, req.user.id);
 
+    logAudit('create_assignment', { courseId, title: safeTitle }, req.user.id);
     res.json({ message: 'Assignment created', id: result.lastInsertRowid });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to create assignment');
   }
 });
 
 router.post('/midsem', authorizeRoles('lecturer', 'admin'), (req, res) => {
   try {
     const { course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions } = req.body;
+    const safeTitle = sanitizeText(title);
+    const safeDescription = sanitizeText(description);
+    const safeVenue = sanitizeText(venue);
+    const safeInstructions = sanitizeText(instructions);
+    const courseId = Number(course_id);
+    const examDate = normalizeText(exam_date);
+    const durationMinutes = Number(duration_minutes || 60);
+    const totalMarks = Number(total_marks || 50);
+
+    if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
+    if (!safeTitle || !examDate) return res.status(400).json({ error: 'Exam title and date are required.' });
+    if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return res.status(400).json({ error: 'Duration must be a positive number.' });
+    if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
     const result = db.prepare(
       'INSERT INTO midsem_exams (course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(course_id, title, description, exam_date, duration_minutes || 60, total_marks || 50, venue, instructions, req.user.id);
+    ).run(courseId, safeTitle, safeDescription, examDate, durationMinutes, totalMarks, safeVenue, safeInstructions, req.user.id);
 
+    logAudit('create_midsem', { courseId, title: safeTitle }, req.user.id);
     res.json({ message: 'Mid-sem exam created', id: result.lastInsertRowid });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to create exam');
   }
 });
 
 router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('file'), (req, res) => {
   try {
+    const assignmentId = Number(req.params.assignmentId);
     const filePath = req.file ? `/uploads/${req.file.filename}` : null;
     const { notes } = req.body;
+    const safeNotes = sanitizeText(notes);
 
-    const existing = db.prepare('SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?').get(req.params.assignmentId, req.user.id);
+    if (!Number.isInteger(assignmentId) || assignmentId <= 0) return res.status(400).json({ error: 'Invalid assignment reference.' });
+
+    const existing = db.prepare('SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?').get(assignmentId, req.user.id);
     if (existing) return res.status(400).json({ error: 'Already submitted.' });
 
     db.prepare(
       'INSERT INTO submissions (assignment_id, student_id, file_path, notes) VALUES (?, ?, ?, ?)'
-    ).run(req.params.assignmentId, req.user.id, filePath, notes);
+    ).run(assignmentId, req.user.id, filePath, safeNotes);
 
+    logAudit('submit_assignment', { assignmentId }, req.user.id);
     res.json({ message: 'Assignment submitted successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to submit assignment');
   }
 });
 
@@ -157,11 +192,19 @@ router.get('/submissions/:assignmentId', authorizeRoles('lecturer', 'admin'), (r
 
 router.put('/grade/:submissionId', authorizeRoles('lecturer', 'admin'), (req, res) => {
   try {
+    const submissionId = Number(req.params.submissionId);
     const { grade, feedback } = req.body;
-    db.prepare('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?').run(grade, feedback, req.params.submissionId);
+    const numericGrade = Number(grade);
+    const safeFeedback = sanitizeText(feedback);
+
+    if (!Number.isInteger(submissionId) || submissionId <= 0) return res.status(400).json({ error: 'Invalid submission reference.' });
+    if (!Number.isInteger(numericGrade) || numericGrade < 0 || numericGrade > 100) return res.status(400).json({ error: 'Grade must be between 0 and 100.' });
+
+    db.prepare('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?').run(numericGrade, safeFeedback, submissionId);
+    logAudit('grade_submission', { submissionId, grade: numericGrade }, req.user.id);
     res.json({ message: 'Graded successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to grade submission');
   }
 });
 

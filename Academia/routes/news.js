@@ -3,6 +3,12 @@ const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
 const { authorizeRoles } = require('../middleware/auth');
+const {
+  sanitizeText,
+  normalizeText,
+  logAudit,
+  handleDbError
+} = require('../utils/security');
 
 const router = express.Router();
 
@@ -55,25 +61,36 @@ router.get('/:id', (req, res) => {
 router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), (req, res) => {
   try {
     const { title, content, category, school, is_pinned } = req.body;
+    const safeTitle = sanitizeText(title);
+    const safeContent = sanitizeText(content);
+    const safeCategory = normalizeText(category) || 'announcement';
+    const safeSchool = sanitizeText(school) || null;
     const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
     const status = req.user.role === 'admin' ? 'approved' : 'pending';
 
+    if (!safeTitle || !safeContent) return res.status(400).json({ error: 'News title and content are required.' });
+    if (!['announcement', 'event', 'update', 'urgent'].includes(safeCategory)) return res.status(400).json({ error: 'Invalid news category.' });
+
     const result = db.prepare(
       'INSERT INTO news (title, content, category, school, image_path, published_by, status, is_pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(title, content, category || 'announcement', school || null, imagePath, req.user.id, status, is_pinned ? 1 : 0);
+    ).run(safeTitle, safeContent, safeCategory, safeSchool, imagePath, req.user.id, status, is_pinned ? 1 : 0);
 
+    logAudit('create_news', { title: safeTitle, category: safeCategory }, req.user.id);
     res.json({ message: status === 'pending' ? 'News submitted (pending approval)' : 'News published', id: result.lastInsertRowid });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to publish news');
   }
 });
 
 router.delete('/:id', authorizeRoles('admin'), (req, res) => {
   try {
-    db.prepare('DELETE FROM news WHERE id = ?').run(req.params.id);
+    const newsId = Number(req.params.id);
+    if (!Number.isInteger(newsId) || newsId <= 0) return res.status(400).json({ error: 'Invalid article id.' });
+    db.prepare('DELETE FROM news WHERE id = ?').run(newsId);
+    logAudit('delete_news', { newsId }, req.user.id);
     res.json({ message: 'Article deleted' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    handleDbError(res, err, 'Unable to delete article');
   }
 });
 

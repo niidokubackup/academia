@@ -12,6 +12,7 @@ const newsRoutes = require('./routes/news');
 const adminRoutes = require('./routes/admin');
 const { authenticateToken, authorizeRoles } = require('./middleware/auth');
 const jwt = require('jsonwebtoken');
+const { logAudit } = require('./utils/security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,7 @@ function pageAuth(req, res, next) {
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch {
+    res.clearCookie('token');
     res.redirect('/');
   }
 }
@@ -53,6 +55,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/dashboard', pageAuth, (req, res) => {
+  logAudit('view_dashboard', { userId: req.user?.id }, req.user?.id || null);
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
@@ -74,6 +77,12 @@ app.get('/news', pageAuth, (req, res) => {
 
 app.get('/admin', pageAuth, requireRole('admin'), (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  logAudit('server_error', { message: err.message, path: req.originalUrl }, req.user?.id || null);
+  res.status(err.statusCode || 500).json({ error: 'An unexpected error occurred.' });
 });
 
 app.listen(PORT, () => {
