@@ -4,6 +4,15 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const helmet = require('helmet');
 const db = require('./models/database');
+
+if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('ERROR: JWT_SECRET must be set in production. Please add it to your environment.');
+    process.exit(1);
+  }
+  process.env.JWT_SECRET = 'academia-dev-secret';
+  console.warn('Warning: JWT_SECRET is not set. Using development fallback secret.');
+}
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
 const coursesRoutes = require('./routes/courses');
