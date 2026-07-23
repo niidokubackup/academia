@@ -12,11 +12,26 @@ const {
 
 const router = express.Router();
 
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, 'sub-' + Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+
+const allowedMimes = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/gif'
+];
+function fileFilter(req, file, cb) {
+  if (allowedMimes.includes(file.mimetype)) return cb(null, true);
+  return cb(new Error('Unsupported file type'), false);
+}
+
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter });
 
 router.get('/', (req, res) => {
   try {
@@ -109,7 +124,7 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('attachment'
     const courseId = Number(course_id);
     const dueDate = normalizeText(due_date);
     const totalMarks = Number(total_marks || 100);
-    const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const filePath = req.file ? `/api/files/${req.file.filename}` : null;
 
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
     if (!safeTitle || !dueDate) return res.status(400).json({ error: 'Assignment title and due date are required.' });
@@ -157,7 +172,7 @@ router.post('/midsem', authorizeRoles('lecturer', 'admin'), (req, res) => {
 router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('file'), (req, res) => {
   try {
     const assignmentId = Number(req.params.assignmentId);
-    const filePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const filePath = req.file ? `/api/files/${req.file.filename}` : null;
     const { notes } = req.body;
     const safeNotes = sanitizeText(notes);
 

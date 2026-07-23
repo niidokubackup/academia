@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const helmet = require('helmet');
 const db = require('./models/database');
 const authRoutes = require('./routes/auth');
 const dashboardRoutes = require('./routes/dashboard');
@@ -16,6 +17,10 @@ const { logAudit } = require('./utils/security');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const fs = require('fs');
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
 
 function pageAuth(req, res, next) {
   const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
@@ -40,7 +45,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
+// Security headers
+app.use(helmet());
+
+// Redirect HTTP to HTTPS in production (honour proxy header if behind a proxy)
+if (process.env.NODE_ENV === 'production') {
+  app.enable('trust proxy');
+  app.use((req, res, next) => {
+    const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+    if (proto === 'http') {
+      return res.redirect(301, `https://${req.headers.host}${req.originalUrl}`);
+    }
+    next();
+  });
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', authenticateToken, dashboardRoutes);
@@ -50,8 +69,15 @@ app.use('/api/calendar', authenticateToken, calendarRoutes);
 app.use('/api/news', authenticateToken, newsRoutes);
 app.use('/api/admin', authenticateToken, adminRoutes);
 
+const filesRoutes = require('./routes/files');
+app.use('/api/files', authenticateToken, filesRoutes);
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/reset-password', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'reset-password.html'));
 });
 
 app.get('/dashboard', pageAuth, (req, res) => {

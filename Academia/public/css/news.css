@@ -1,0 +1,37 @@
+/* ========== NEWS PAGE STYLES ========== */
+
+.news-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.news-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.news-card:hover { transform: translateY(-3px); }
+
+.news-card .news-img {
+  height: 180px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 3rem;
+}
+
+.news-card .news-content { padding: 18px; }
+.news-card .news-content h3 { margin-bottom: 8px; font-size: 1.05rem; }
+.news-card .news-content p { font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 12px; }
+.news-card .news-meta { font-size: 0.78rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+
+@media (max-width: 768px) {
+  .news-grid { grid-template-columns: 1fr; }
+}

@@ -12,11 +12,19 @@ const {
 
 const router = express.Router();
 
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, 'news-' + Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
-const upload = multer({ storage });
+
+const imageMimes = ['image/jpeg', 'image/png', 'image/gif'];
+function imageFilter(req, file, cb) {
+  if (imageMimes.includes(file.mimetype)) return cb(null, true);
+  return cb(new Error('Unsupported image type'), false);
+}
+
+const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFilter });
 
 router.get('/', (req, res) => {
   try {
@@ -65,7 +73,7 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), (r
     const safeContent = sanitizeText(content);
     const safeCategory = normalizeText(category) || 'announcement';
     const safeSchool = sanitizeText(school) || null;
-    const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+    const imagePath = req.file ? `/api/files/${req.file.filename}` : null;
     const status = req.user.role === 'admin' ? 'approved' : 'pending';
 
     if (!safeTitle || !safeContent) return res.status(400).json({ error: 'News title and content are required.' });

@@ -18,7 +18,30 @@ db.exec(`
     department TEXT,
     level TEXT,
     matric_number TEXT,
+    identity_code TEXT UNIQUE,
+    mfa_enabled INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT UNIQUE NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS mfa_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    challenge_token TEXT UNIQUE NOT NULL,
+    otp_code TEXT NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
   CREATE TABLE IF NOT EXISTS courses (
@@ -162,10 +185,23 @@ try { db.exec("ALTER TABLE courses ADD COLUMN status TEXT DEFAULT 'draft'"); } c
 try { db.exec("ALTER TABLE courses ADD COLUMN academic_year TEXT DEFAULT '2025/2026'"); } catch(e) {}
 try { db.exec("ALTER TABLE news ADD COLUMN status TEXT DEFAULT 'approved'"); } catch(e) {}
 try { db.exec("ALTER TABLE calendar_events ADD COLUMN status TEXT DEFAULT 'approved'"); } catch(e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN identity_code TEXT"); } catch(e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 1"); } catch(e) {}
+try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_identity_code ON users(identity_code)"); } catch(e) {}
 // Mark all existing courses as published so they remain visible
 try { db.exec("UPDATE courses SET status = 'published' WHERE status IS NULL OR status = ''"); } catch(e) {}
 // Mark all existing news/events as approved
 try { db.exec("UPDATE news SET status = 'approved' WHERE status IS NULL OR status = ''"); } catch(e) {}
 try { db.exec("UPDATE calendar_events SET status = 'approved' WHERE status IS NULL OR status = ''"); } catch(e) {}
+
+// Seed identity codes for accounts that do not already have them
+try {
+  const usersWithoutCode = db.prepare('SELECT id, role, full_name FROM users WHERE identity_code IS NULL OR identity_code = ?').all('',);
+  for (const user of usersWithoutCode) {
+    const prefix = user.role === 'student' ? 'STU' : 'STA';
+    const code = `${prefix}-${String(user.id).padStart(5, '0')}`;
+    db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(code, user.id);
+  }
+} catch(e) {}
 
 module.exports = db;

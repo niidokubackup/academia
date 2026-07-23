@@ -245,12 +245,94 @@ function renderSidebar(activePage) {
           <div class="user-role">${user.role.charAt(0).toUpperCase() + user.role.slice(1)} ${user.level || ''}</div>
         </div>
       </div>
-      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px;font-size:0.8rem;" onclick="logout()">
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px;font-size:0.8rem;" onclick="openChangePasswordModal()">
+        <i data-lucide="key-round" style="width:14px;height:14px"></i> Change Password
+      </button>
+      <button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px;font-size:0.8rem;" onclick="logout()">
         <i data-lucide="log-out" style="width:14px;height:14px"></i> Sign Out
       </button>
     </div>
   `;
   if (window.lucide) lucide.createIcons();
+}
+
+function openChangePasswordModal() {
+  const existing = document.getElementById('change-password-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'change-password-modal';
+  overlay.className = 'modal-overlay active';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Change Password</h2>
+        <button type="button" class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="change-password-message" class="success-msg" style="display:none"></div>
+        <div id="change-password-error" class="error-msg" style="display:none"></div>
+        <div class="form-group">
+          <label for="cp-current-password">Current Password</label>
+          <input id="cp-current-password" type="password" placeholder="Enter your current password" required>
+        </div>
+        <div class="form-group">
+          <label for="cp-new-password">New Password</label>
+          <input id="cp-new-password" type="password" placeholder="Enter a new password" required>
+        </div>
+        <div class="form-group">
+          <label for="cp-confirm-password">Confirm New Password</label>
+          <input id="cp-confirm-password" type="password" placeholder="Re-enter the new password" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="change-password-submit">Update Password</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  document.getElementById('change-password-submit').addEventListener('click', async () => {
+    const currentPassword = document.getElementById('cp-current-password').value;
+    const newPassword = document.getElementById('cp-new-password').value;
+    const confirmPassword = document.getElementById('cp-confirm-password').value;
+    const messageBox = document.getElementById('change-password-message');
+    const errorBox = document.getElementById('change-password-error');
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      errorBox.textContent = 'Please complete all password fields.';
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      errorBox.textContent = 'New passwords do not match.';
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    const result = await apiPost('/api/auth/change-password', { currentPassword, newPassword });
+    if (result?.error) {
+      errorBox.textContent = result.error;
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    messageBox.textContent = result?.message || 'Password changed successfully.';
+    messageBox.style.display = 'block';
+    errorBox.style.display = 'none';
+    document.getElementById('change-password-submit').disabled = true;
+    setTimeout(() => closeChangePasswordModal(), 1700);
+  });
+}
+
+function closeChangePasswordModal() {
+  const modal = document.getElementById('change-password-modal');
+  if (modal) modal.remove();
 }
 
 function toggleSidebar() {

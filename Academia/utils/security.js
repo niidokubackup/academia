@@ -12,7 +12,12 @@ function validateEmail(value) {
 }
 
 function validatePassword(value) {
-  return typeof value === 'string' && value.length >= 8 && /[A-Z]/.test(value) && /[0-9]/.test(value);
+  return typeof value === 'string'
+    && value.length >= 8
+    && /[A-Z]/.test(value)
+    && /[a-z]/.test(value)
+    && /[0-9]/.test(value)
+    && /[!@#$%^&*(),.?":{}|<>]/.test(value);
 }
 
 function validateRole(value) {

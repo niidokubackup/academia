@@ -17,8 +17,9 @@ const {
 
 const router = express.Router();
 
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'public', 'uploads')),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, 'course-' + Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
 });
 const upload = multer({ storage });
@@ -45,7 +46,7 @@ router.post('/users', authorizeRoles('admin'), (req, res) => {
       return res.status(400).json({ error: 'All required user fields must be provided.' });
     }
     if (!validateEmail(safeEmail)) return res.status(400).json({ error: 'Please provide a valid email address.' });
-    if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase letters and numbers.' });
+    if (!validatePassword(password)) return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.' });
     if (!validateRole(safeRole)) return res.status(400).json({ error: 'Invalid role selected.' });
 
     const hashedPassword = bcrypt.hashSync(password, 12);
