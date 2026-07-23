@@ -100,6 +100,13 @@ async function sendEmail(to, subject, html) {
   return true;
 }
 
+const DEFAULT_PASSWORDS = ['admin123', 'Academia@123'];
+
+function shouldForcePasswordChange(user) {
+  if (!user || !user.password) return false;
+  return DEFAULT_PASSWORDS.some((defaultPassword) => bcrypt.compareSync(defaultPassword, user.password));
+}
+
 function buildAuthPayload(user) {
   return {
     id: user.id,
@@ -110,7 +117,8 @@ function buildAuthPayload(user) {
     department: user.department,
     level: user.level,
     matric_number: user.matric_number,
-    identity_code: user.identity_code
+    identity_code: user.identity_code,
+    forcePasswordChange: shouldForcePasswordChange(user)
   };
 }
 
@@ -198,10 +206,39 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const user = db.prepare(`
+    let user = db.prepare(`
       SELECT * FROM users
       WHERE email = ? OR matric_number = ? OR identity_code = ?
     `).get(lookup, lookup, lookup);
+
+    // Auto-create Gmail accounts on first sign-in with default password
+    const isGmail = lookup.endsWith('@gmail.com');
+    const DEFAULT_PASSWORD = 'Academia@123';
+
+    if (!user && isGmail) {
+      if (password !== DEFAULT_PASSWORD) {
+        recordAttempt(lookup, ip, false);
+        const remaining = MAX_ATTEMPTS - getFailedAttempts(lookup);
+        return res.status(401).json({
+          error: 'Invalid credentials. ' + (remaining > 0 ? `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` : 'Account locked.'),
+          remaining
+        });
+      }
+
+      const emailName = lookup.replace('@gmail.com', '').replace(/[._]/g, ' ');
+      const fullName = emailName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const hashedPassword = bcrypt.hashSync(DEFAULT_PASSWORD, 12);
+
+      const result = db.prepare(
+        'INSERT INTO users (full_name, email, password, role, school, department, mfa_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(fullName || 'New User', lookup, hashedPassword, 'student', 'University for Development Studies', null, 0);
+
+      const identityCode = generateIdentityCode('student', Number(result.lastInsertRowid));
+      db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(identityCode, result.lastInsertRowid);
+
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+      logAudit('auto_registered_gmail', { email: lookup }, user.id);
+    }
 
     if (!user) {
       recordAttempt(lookup, ip, false);
@@ -229,7 +266,10 @@ router.post('/login', async (req, res) => {
 
     recordAttempt(lookup, ip, true);
 
-    if (['lecturer', 'admin'].includes(user.role)) {
+    const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+    const requiresMfa = Number(user.mfa_enabled) === 1 && ['lecturer', 'admin'].includes(user.role) && smtpConfigured;
+
+    if (requiresMfa) {
       const otpCode = String(crypto.randomInt(100000, 999999));
       const challengeToken = crypto.randomBytes(20).toString('hex');
       const expiresAt = new Date(Date.now() + MFA_EXPIRY_MINUTES * 60000).toISOString();
@@ -253,6 +293,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    const authUser = buildAuthPayload(user);
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, full_name: user.full_name, school: user.school },
       process.env.JWT_SECRET,
@@ -265,7 +306,8 @@ router.post('/login', async (req, res) => {
     res.json({
       message: 'Login successful',
       token,
-      user: buildAuthPayload(user)
+      user: authUser,
+      forcePasswordChange: authUser.forcePasswordChange
     });
   } catch (err) {
     handleDbError(res, err, 'Login failed');
@@ -410,9 +452,66 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     const hashedPassword = bcrypt.hashSync(newPassword, 12);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
     logAudit('password_changed', { email: userRow.email }, req.user.id);
-    res.json({ message: 'Password changed successfully.' });
+    res.json({ message: 'Password changed successfully. You can now enable MFA from this modal.' });
   } catch (err) {
     handleDbError(res, err, 'Unable to change password');
+  }
+});
+
+router.post('/request-mfa-setup', authenticateToken, async (req, res) => {
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    const otpCode = String(crypto.randomInt(100000, 999999));
+    const challengeToken = crypto.randomBytes(20).toString('hex');
+    const expiresAt = new Date(Date.now() + MFA_EXPIRY_MINUTES * 60000).toISOString();
+
+    db.prepare('INSERT INTO mfa_tokens (user_id, challenge_token, otp_code, expires_at) VALUES (?, ?, ?, ?)')
+      .run(user.id, challengeToken, otpCode, expiresAt);
+
+    await sendEmail(
+      user.email,
+      'Academia MFA setup code',
+      `<div style="font-family:Arial,sans-serif;line-height:1.6;padding:24px"><h2>Academia MFA Setup</h2><p>Your verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${otpCode}</p><p>This code expires in ${MFA_EXPIRY_MINUTES} minutes.</p></div>`
+    );
+
+    logAudit('mfa_setup_requested', { email: user.email, role: user.role }, user.id);
+    res.json({
+      message: 'A one-time MFA setup code has been sent to your email. In preview mode, the code is also printed in the server console.',
+      challengeToken
+    });
+  } catch (err) {
+    handleDbError(res, err, 'Unable to set up MFA');
+  }
+});
+
+router.post('/confirm-mfa-setup', authenticateToken, async (req, res) => {
+  try {
+    const { challengeToken, otpCode } = req.body;
+    if (!challengeToken || !otpCode) {
+      return res.status(400).json({ error: 'Verification data is incomplete.' });
+    }
+
+    const mfaRow = db.prepare('SELECT * FROM mfa_tokens WHERE challenge_token = ? AND used = 0').get(challengeToken);
+    if (!mfaRow) return res.status(400).json({ error: 'Invalid or expired MFA challenge.' });
+
+    const expiresAt = new Date(mfaRow.expires_at);
+    if (Number.isNaN(expiresAt.getTime()) || expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Invalid or expired MFA challenge.' });
+    }
+
+    if (String(mfaRow.otp_code) !== String(otpCode).trim()) {
+      return res.status(400).json({ error: 'Incorrect verification code.' });
+    }
+
+    db.prepare('UPDATE mfa_tokens SET used = 1 WHERE id = ?').run(mfaRow.id);
+    db.prepare('UPDATE users SET mfa_enabled = 1 WHERE id = ?').run(req.user.id);
+
+    logAudit('mfa_setup_completed', { email: req.user.email, role: req.user.role }, req.user.id);
+    res.json({ message: 'MFA has been enabled successfully for your account.' });
+  } catch (err) {
+    handleDbError(res, err, 'Unable to complete MFA setup');
   }
 });
 

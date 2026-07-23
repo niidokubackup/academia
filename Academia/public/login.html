@@ -36,6 +36,9 @@
     .login-card { background: rgba(255,255,255,.72); backdrop-filter: blur(24px); border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.6); box-shadow: 0 20px 60px rgba(0,0,0,.06); }
     .card-body { padding: 26px 24px 14px; }
     .portal-badge { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 8px 12px; border-radius: 999px; margin-bottom: 16px; background:#e3f2fd;color:#0d47a1; }
+    .login-note { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: rgba(26,35,126,0.06); border: 1px solid rgba(26,35,126,0.12); color: #334155; font-size: 0.86rem; line-height: 1.5; }
+    .login-note strong { color: #1a237e; }
+    .login-note a { color: #1a237e; font-weight: 700; text-decoration: none; }
     .error-box { display:none; align-items:center; gap:8px; background:#ffebee; color:#b71c1c; padding:12px 14px; border-radius:12px; margin-bottom:16px; font-size:0.9rem; }
     .input-group { margin-bottom: 16px; }
     .input-group label { display:block; margin-bottom:8px; color:#425466; font-size:0.9rem; font-weight:700; }
@@ -66,8 +69,17 @@
   <div class="login-wrapper">
     <div class="brand">
       <div class="brand-logos">
-        <img src="/images/logos/logo1.png" alt="Academia" class="logo-main">
-        <img src="/images/logos/logo2.png" alt="Academia">
+        <img
+          src="/images/logos/logo1.png"
+          alt=""
+          class="logo-main"
+          onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 80%22><rect width=%22160%22 height=%2280%22 rx=%2216%22 fill=%22%23e8f0ff%22/><circle cx=%2235%22 cy=%2240%22 r=%2222%22 fill=%22%231a237e%22/><path d=%22M35 22l12 32h-8l-2.8-7.5h-9L22 54h-8z%22 fill=%22white%22/><path d=%22M63 24h16v6H76v25h-8V30h-5z%22 fill=%22%231a237e%22/><path d=%22M86 24h7.5l10.8 31h-8.2l-1.7-5.2H85l-1.7 5.2h-8.2zM94.6 43l-3.3-10.4L87.9 43z%22 fill=%22%231a237e%22/><path d=%22M111 24h8v31h-8zM124 24h8v31h-8z%22 fill=%22%231a237e%22/></svg>'"
+        >
+        <img
+          src="/images/logos/logo2.png"
+          alt="Academia institutional wordmark logo for the student information portal"
+          onerror="this.onerror=null;this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 220 80%22><rect width=%22220%22 height=%2280%22 rx=%2216%22 fill=%22%23f8fbff%22/><text x=%2210%22 y=%2248%22 font-family=%22Arial, Helvetica, sans-serif%22 font-size=%2228%22 font-weight=%22700%22 fill=%22%231a237e%22>ACADEMIA</text><text x=%2211%22 y=%2265%22 font-family=%22Arial, Helvetica, sans-serif%22 font-size=%2210%22 letter-spacing=%222px%22 fill=%22%2364748b%22>STUDENT INFORMATION PORTAL</text></svg>'"
+        >
       </div>
       <h1>Student Information Management</h1>
     </div>
@@ -77,7 +89,7 @@
         <div class="portal-badge"><i data-lucide="shield-check"></i> Unified Login</div>
         <div class="error-box" id="login-err"><i data-lucide="alert-circle"></i><span></span></div>
 
-        <form id="login-form" onsubmit="submitLogin(event)">
+        <form id="login-form">
           <div class="input-group">
             <label for="identifier">Email / Index Number</label>
             <div class="input-wrap">
@@ -91,7 +103,7 @@
             <div class="input-wrap">
               <input id="password" type="password" placeholder="Enter password" required autocomplete="current-password">
               <i data-lucide="lock"></i>
-              <button type="button" class="eye-toggle" onclick="showHide('password', this)"><i data-lucide="eye"></i></button>
+              <button type="button" class="eye-toggle" id="toggle-password-visibility"><i data-lucide="eye"></i></button>
             </div>
             <div class="secondary-link">
               <small>Use your registered account credentials.</small>
@@ -110,7 +122,14 @@
               <i data-lucide="shield-check"></i>
             </div>
           </div>
-          <button type="button" class="submit-btn" id="verify-mfa-btn" onclick="verifyMfa()"><i data-lucide="check-circle"></i>Verify MFA</button>
+          <button type="button" class="submit-btn" id="verify-mfa-btn"><i data-lucide="check-circle"></i>Verify MFA</button>
+        </div>
+
+        <div class="login-note">
+          <strong>Gmail users:</strong> Enter your Gmail address (e.g. <em>you@gmail.com</em>).<br>
+          First-time sign-in password: <strong>Academia@123</strong><br>
+          Default admin: <strong>admin@academia.edu</strong> / <strong>admin123</strong><br>
+          After signing in, change your password from the <a href="/dashboard">dashboard</a>.
         </div>
       </div>
       <div class="card-footer">Secured with end-to-end encryption</div>
@@ -119,6 +138,16 @@
 
   <script>
     lucide.createIcons();
+
+    const loginForm = document.getElementById('login-form');
+    const identifierInput = document.getElementById('identifier');
+    const passwordToggle = document.getElementById('toggle-password-visibility');
+    const verifyMfaBtn = document.getElementById('verify-mfa-btn');
+
+    if (loginForm) loginForm.addEventListener('submit', submitLogin);
+    if (identifierInput) identifierInput.addEventListener('blur', () => autocorrectGmail(identifierInput));
+    if (passwordToggle) passwordToggle.addEventListener('click', () => showHide('password', passwordToggle));
+    if (verifyMfaBtn) verifyMfaBtn.addEventListener('click', verifyMfa);
 
     // Check if there is an active server session before redirecting.
     // A stale localStorage entry (expired cookie) must NOT cause a blank-screen loop.
@@ -143,6 +172,12 @@
 
 
     let pendingChallengeToken = null;
+
+    function autocorrectGmail(input) {
+      let val = input.value.trim();
+      if (!val || val.includes('@')) return;
+      input.value = val + '@gmail.com';
+    }
 
     function showHide(id, btn) {
       const el = document.getElementById(id);

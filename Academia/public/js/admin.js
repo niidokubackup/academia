@@ -138,24 +138,6 @@ async function addUser(e) {
   loadAdminStats();
 }
 
-async function addCourse(e) {
-  e.preventDefault();
-  const res = await apiPost('/api/admin/courses', {
-    code: document.getElementById('ac-code').value,
-    title: document.getElementById('ac-title').value,
-    level: document.getElementById('ac-level').value,
-    school: document.getElementById('ac-school').value,
-    semester: document.getElementById('ac-semester').value,
-  });
-  if (res.error) { showToast(res.error, 'error'); return; }
-  showToast('Course added and published!', 'success');
-  hideModal('add-course-admin-modal');
-  document.getElementById('ac-code').value = '';
-  document.getElementById('ac-title').value = '';
-  loadCompilation();
-  loadAdminStats();
-}
-
 async function deleteUser(id) {
   if (!confirm('Delete this user?')) return;
   const res = await apiDelete(`/api/admin/users/${id}`);

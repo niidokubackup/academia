@@ -90,7 +90,7 @@ router.get('/courses', authorizeRoles('admin'), (req, res) => {
   }
 });
 
-router.post('/courses', authorizeRoles('admin', 'lecturer'), (req, res) => {
+router.post('/courses', authorizeRoles('lecturer'), (req, res) => {
   try {
     const { code, title, description, level, school, department, semester, academic_year, lecturer_id } = req.body;
     const safeCode = normalizeText(code).toUpperCase();

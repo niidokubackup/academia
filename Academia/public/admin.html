@@ -50,12 +50,11 @@
             <div class="card-header">
               <h2>Course Compilation</h2>
               <div>
-                <select id="comp-status-filter" onchange="loadCompilation()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;margin-right:8px;font-size:0.85rem">
+                <select id="comp-status-filter" onchange="loadCompilation()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem">
                   <option value="">All Courses</option>
                   <option value="draft">Drafts (Pending)</option>
                   <option value="published">Published</option>
                 </select>
-                <button class="btn btn-primary btn-sm" onclick="showModal('add-course-admin-modal')">+ Add Course</button>
               </div>
             </div>
             <div class="card-body">
@@ -155,40 +154,9 @@
           </div>
           <div class="form-row">
             <div class="form-group"><label>Department</label><input type="text" id="au-dept"></div>
-            <div class="form-group"><label>Matric Number</label><input type="text" id="au-matric"></div>
+            <div class="form-group"><label>Index Number</label><input type="text" id="au-matric"></div>
           </div>
           <button type="submit" class="btn btn-primary btn-block">Add User</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Course Modal -->
-  <div class="modal-overlay" id="add-course-admin-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2>Add Course</h2>
-        <button class="modal-close" onclick="hideModal('add-course-admin-modal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form onsubmit="addCourse(event)">
-          <div class="form-row">
-            <div class="form-group"><label>Code</label><input type="text" id="ac-code" required></div>
-            <div class="form-group"><label>Level</label><select id="ac-level"><option value="L100">L100</option><option value="L200">L200</option><option value="L300">L300</option><option value="L400">L400</option></select></div>
-          </div>
-          <div class="form-group"><label>Title</label><input type="text" id="ac-title" required></div>
-          <div class="form-row">
-            <div class="form-group"><label>School</label><select id="ac-school">
-              <option>University for Development Studies</option>
-              <option>University of Education, Winneba</option>
-              <option>Ghana Institute of Management and Public Administration</option>
-              <option>University of Mines and Technology</option>
-              <option>University of Health and Allied Sciences</option>
-              <option>University of Energy and Natural Resources</option>
-            </select></div>
-            <div class="form-group"><label>Semester</label><select id="ac-semester"><option value="first">First</option><option value="second">Second</option></select></div>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block">Add Course (Published)</button>
         </form>
       </div>
     </div>

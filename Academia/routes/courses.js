@@ -120,7 +120,7 @@ router.get('/browse', (req, res) => {
   }
 });
 
-router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('file'), (req, res) => {
+router.post('/', authorizeRoles('lecturer'), upload.single('file'), (req, res) => {
   try {
     const { course_id, title, description, level, semester, academic_year, category } = req.body;
     const safeTitle = sanitizeText(title);

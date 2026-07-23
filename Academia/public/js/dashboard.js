@@ -3,7 +3,12 @@
 if (checkAuth()) {
   const user = getUser();
   renderSidebar('dashboard');
-  document.getElementById('greeting').textContent = `Hello, ${user.full_name.split(' ')[0]}`;
+  document.getElementById('greeting').textContent = `Hi, ${user.full_name}`;
+
+  if (user?.forcePasswordChange) {
+    openChangePasswordModal(true);
+  }
+
   loadDashboard();
 }
 

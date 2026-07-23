@@ -19,7 +19,7 @@ db.exec(`
     level TEXT,
     matric_number TEXT,
     identity_code TEXT UNIQUE,
-    mfa_enabled INTEGER DEFAULT 1,
+    mfa_enabled INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -186,7 +186,8 @@ try { db.exec("ALTER TABLE courses ADD COLUMN academic_year TEXT DEFAULT '2025/2
 try { db.exec("ALTER TABLE news ADD COLUMN status TEXT DEFAULT 'approved'"); } catch(e) {}
 try { db.exec("ALTER TABLE calendar_events ADD COLUMN status TEXT DEFAULT 'approved'"); } catch(e) {}
 try { db.exec("ALTER TABLE users ADD COLUMN identity_code TEXT"); } catch(e) {}
-try { db.exec("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 1"); } catch(e) {}
+try { db.exec("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER DEFAULT 0"); } catch(e) {}
+try { db.exec("UPDATE users SET mfa_enabled = 0 WHERE mfa_enabled IS NULL OR mfa_enabled = 1"); } catch(e) {}
 try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_identity_code ON users(identity_code)"); } catch(e) {}
 // Mark all existing courses as published so they remain visible
 try { db.exec("UPDATE courses SET status = 'published' WHERE status IS NULL OR status = ''"); } catch(e) {}

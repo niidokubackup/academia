@@ -15,7 +15,7 @@ if (checkAuth()) {
     });
   }
 
-  if (user.role === 'lecturer' || user.role === 'admin') {
+  if (user.role === 'lecturer') {
     document.getElementById('add-course-btn').style.display = 'inline-flex';
     document.getElementById('upload-material-btn').style.display = 'inline-flex';
   }

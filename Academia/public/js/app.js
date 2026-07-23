@@ -89,19 +89,6 @@ function logout() {
   window.location.href = '/';
 }
 
-const schoolLogos = {
-  'University for Development Studies': '/images/schools/uds.png',
-  'University of Education, Winneba': '/images/schools/uew.png',
-  'Ghana Institute of Management and Public Administration': '/images/schools/gimpa.png',
-  'University of Mines and Technology': '/images/schools/umat.png',
-  'University of Health and Allied Sciences': '/images/schools/uhas.png',
-  'University of Energy and Natural Resources': '/images/schools/uner.png'
-};
-
-function getSchoolLogo(school) {
-  return schoolLogos[school] || '';
-}
-
 async function apiGet(url) {
   const res = await fetch(API_BASE + url, {
     headers: { 'Authorization': 'Bearer ' + getToken() }
@@ -256,7 +243,7 @@ function renderSidebar(activePage) {
   if (window.lucide) lucide.createIcons();
 }
 
-function openChangePasswordModal() {
+function openChangePasswordModal(forceReset = false) {
   const existing = document.getElementById('change-password-modal');
   if (existing) existing.remove();
 
@@ -270,7 +257,7 @@ function openChangePasswordModal() {
         <button type="button" class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
       </div>
       <div class="modal-body">
-        <div id="change-password-message" class="success-msg" style="display:none"></div>
+        <div id="change-password-message" class="success-msg" style="display:${forceReset ? 'block' : 'none'}">${forceReset ? 'Your account is still using the default password. Update it now to continue securely.' : ''}</div>
         <div id="change-password-error" class="error-msg" style="display:none"></div>
         <div class="form-group">
           <label for="cp-current-password">Current Password</label>
@@ -284,15 +271,27 @@ function openChangePasswordModal() {
           <label for="cp-confirm-password">Confirm New Password</label>
           <input id="cp-confirm-password" type="password" placeholder="Re-enter the new password" required>
         </div>
+        <div class="form-group" id="cp-mfa-wrap" style="display:none;">
+          <label for="cp-mfa-otp">MFA Setup Code</label>
+          <input id="cp-mfa-otp" type="text" maxlength="6" placeholder="Enter the 6-digit MFA code" required>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" onclick="closeChangePasswordModal()">Cancel</button>
         <button type="button" class="btn btn-primary" id="change-password-submit">Update Password</button>
+        <button type="button" class="btn btn-outline" id="mfa-setup-button" style="display:none;">Enable MFA</button>
+        <button type="button" class="btn btn-primary" id="mfa-verify-button" style="display:none;">Verify MFA</button>
       </div>
     </div>
   `;
 
   document.body.appendChild(overlay);
+  const mfaSetupButton = document.getElementById('mfa-setup-button');
+  const mfaVerifyButton = document.getElementById('mfa-verify-button');
+  const cpMfaWrap = document.getElementById('cp-mfa-wrap');
+  const cpMfaOtp = document.getElementById('cp-mfa-otp');
+  let pendingMfaChallengeToken = null;
+
   document.getElementById('change-password-submit').addEventListener('click', async () => {
     const currentPassword = document.getElementById('cp-current-password').value;
     const newPassword = document.getElementById('cp-new-password').value;
@@ -326,7 +325,60 @@ function openChangePasswordModal() {
     messageBox.style.display = 'block';
     errorBox.style.display = 'none';
     document.getElementById('change-password-submit').disabled = true;
-    setTimeout(() => closeChangePasswordModal(), 1700);
+
+    const storedUser = getUser();
+    if (storedUser) {
+      storedUser.forcePasswordChange = false;
+      localStorage.setItem('user', JSON.stringify(storedUser));
+    }
+
+    mfaSetupButton.style.display = 'inline-flex';
+  });
+
+  mfaSetupButton.addEventListener('click', async () => {
+    const result = await apiPost('/api/auth/request-mfa-setup', {});
+    if (result?.error) {
+      errorBox.textContent = result.error;
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    pendingMfaChallengeToken = result?.challengeToken || null;
+    cpMfaWrap.style.display = 'block';
+    mfaVerifyButton.style.display = 'inline-flex';
+    messageBox.textContent = result?.message || 'A verification code has been sent to your email. In preview mode, the code will also be printed in the server console.';
+    messageBox.style.display = 'block';
+    errorBox.style.display = 'none';
+  });
+
+  mfaVerifyButton.addEventListener('click', async () => {
+    const otpCode = cpMfaOtp.value.trim();
+    if (!pendingMfaChallengeToken || !otpCode) {
+      errorBox.textContent = 'Request the MFA code first, then enter the 6-digit verification code.';
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    const result = await apiPost('/api/auth/confirm-mfa-setup', {
+      challengeToken: pendingMfaChallengeToken,
+      otpCode
+    });
+
+    if (result?.error) {
+      errorBox.textContent = result.error;
+      errorBox.style.display = 'block';
+      messageBox.style.display = 'none';
+      return;
+    }
+
+    messageBox.textContent = result?.message || 'MFA has been enabled successfully.';
+    messageBox.style.display = 'block';
+    errorBox.style.display = 'none';
+    mfaVerifyButton.disabled = true;
+    cpMfaWrap.style.display = 'none';
+    setTimeout(() => closeChangePasswordModal(), 2000);
   });
 }
 

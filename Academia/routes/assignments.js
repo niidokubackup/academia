@@ -116,7 +116,7 @@ router.get('/midsems', (req, res) => {
   }
 });
 
-router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('attachment'), (req, res) => {
+router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), (req, res) => {
   try {
     const { course_id, title, description, due_date, total_marks } = req.body;
     const safeTitle = sanitizeText(title);
@@ -141,7 +141,7 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('attachment'
   }
 });
 
-router.post('/midsem', authorizeRoles('lecturer', 'admin'), (req, res) => {
+router.post('/midsem', authorizeRoles('lecturer'), (req, res) => {
   try {
     const { course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions } = req.body;
     const safeTitle = sanitizeText(title);
