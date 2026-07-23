@@ -123,6 +123,11 @@ app.use((err, req, res, next) => {
   res.status(err.statusCode || 500).json({ error: 'An unexpected error occurred.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Academia server running on http://localhost:${PORT}`);
-});
+// Listen only when run directly (not imported by Vercel)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Academia server running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
