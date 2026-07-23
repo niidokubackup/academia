@@ -25,7 +25,7 @@ const MFA_EXPIRY_MINUTES = 5;
 async function recordAttempt(identifier, ip, success) {
   await db.prepare('INSERT INTO login_attempts (identifier, ip_address, success) VALUES (?, ?, ?)').run(identifier, ip, success ? 1 : 0);
   if (success) {
-    await db.prepare('DELETE FROM login_attempts WHERE identifier = ? AND success = 1').run(identifier);
+    await db.prepare('DELETE FROM login_attempts WHERE identifier = ? AND success = 0').run(identifier);
   }
 }
 
