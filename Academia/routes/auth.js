@@ -230,7 +230,7 @@ router.post('/login', async (req, res) => {
     recordAttempt(lookup, ip, true);
 
     if (['lecturer', 'admin'].includes(user.role)) {
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+      const otpCode = String(crypto.randomInt(100000, 999999));
       const challengeToken = crypto.randomBytes(20).toString('hex');
       const expiresAt = new Date(Date.now() + MFA_EXPIRY_MINUTES * 60000).toISOString();
 
