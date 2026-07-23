@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
@@ -15,7 +16,8 @@ const {
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
@@ -40,7 +42,7 @@ function fileFilter(req, file, cb) {
 
 const upload = multer({ storage, limits: { fileSize: 100 * 1024 * 1024 }, fileFilter });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { level, semester, school, search } = req.query;
     let query = 'SELECT c.*, u.full_name as lecturer_name FROM courses c LEFT JOIN users u ON u.id = c.lecturer_id WHERE 1=1';
@@ -48,7 +50,7 @@ router.get('/', (req, res) => {
 
     if (req.user.role === 'student') {
       query += " AND c.status = 'published'";
-      const student = db.prepare('SELECT school, level FROM users WHERE id = ?').get(req.user.id);
+      const student = await db.prepare('SELECT school, level FROM users WHERE id = ?').get(req.user.id);
       if (student) {
         if (student.school) { query += ' AND (c.school = ? OR c.school IS NULL)'; params.push(student.school); }
         if (student.level) { query += ' AND c.level = ?'; params.push(student.level); }
@@ -64,10 +66,10 @@ router.get('/', (req, res) => {
     if (school) { query += ' AND c.school = ?'; params.push(school); }
     if (search) { query += ' AND (c.code LIKE ? OR c.title LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
 
-    const courses = db.prepare(query).all(...params);
+    const courses = await db.prepare(query).all(...params);
 
     if (req.user.role === 'student') {
-      const enrollments = db.prepare('SELECT course_id FROM enrollments WHERE student_id = ?').all(req.user.id);
+      const enrollments = await db.prepare('SELECT course_id FROM enrollments WHERE student_id = ?').all(req.user.id);
       const enrolledIds = new Set(enrollments.map(e => e.course_id));
       courses.forEach(c => { c.enrolled = enrolledIds.has(c.id); });
     }
@@ -78,9 +80,9 @@ router.get('/', (req, res) => {
   }
 });
 
-router.get('/:id/materials', (req, res) => {
+router.get('/:id/materials', async (req, res) => {
   try {
-    const materials = db.prepare(`
+    const materials = await db.prepare(`
       SELECT m.*, u.full_name as uploaded_by_name
       FROM materials m JOIN users u ON u.id = m.uploaded_by
       WHERE m.course_id = ? ORDER BY m.created_at DESC
@@ -91,7 +93,7 @@ router.get('/:id/materials', (req, res) => {
   }
 });
 
-router.get('/browse', (req, res) => {
+router.get('/browse', async (req, res) => {
   try {
     const { level, semester, category, search } = req.query;
     let query = 'SELECT m.*, c.code as course_code, c.title as course_title, u.full_name as uploaded_by_name FROM materials m JOIN courses c ON c.id = m.course_id JOIN users u ON u.id = m.uploaded_by WHERE 1=1';
@@ -100,7 +102,7 @@ router.get('/browse', (req, res) => {
     if (req.user.role === 'student') {
       query += ' AND c.school = ?';
       params.push(req.user.school);
-      const studentLevel = db.prepare('SELECT level FROM users WHERE id = ?').get(req.user.id);
+      const studentLevel = await db.prepare('SELECT level FROM users WHERE id = ?').get(req.user.id);
       if (studentLevel && studentLevel.level) {
         query += ' AND c.level = ?';
         params.push(studentLevel.level);
@@ -113,14 +115,14 @@ router.get('/browse', (req, res) => {
     if (search) { query += ' AND (m.title LIKE ? OR c.code LIKE ? OR c.title LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`); }
 
     query += ' ORDER BY m.created_at DESC';
-    const materials = db.prepare(query).all(...params);
+    const materials = await db.prepare(query).all(...params);
     res.json(materials);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/', authorizeRoles('lecturer'), upload.single('file'), (req, res) => {
+router.post('/', authorizeRoles('lecturer'), upload.single('file'), async (req, res) => {
   try {
     const { course_id, title, description, level, semester, academic_year, category } = req.body;
     const safeTitle = sanitizeText(title);
@@ -139,7 +141,7 @@ router.post('/', authorizeRoles('lecturer'), upload.single('file'), (req, res) =
     if (!validateSemester(safeSemester)) return res.status(400).json({ error: 'Invalid semester.' });
     if (!validateCategory(safeCategory)) return res.status(400).json({ error: 'Invalid material category.' });
 
-    const result = db.prepare(
+    const result = await db.prepare(
       'INSERT INTO materials (course_id, title, description, file_path, file_type, uploaded_by, level, semester, academic_year, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(courseId, safeTitle, safeDescription, filePath, fileType, req.user.id, safeLevel, safeSemester, safeAcademicYear, safeCategory);
 
@@ -150,16 +152,16 @@ router.post('/', authorizeRoles('lecturer'), upload.single('file'), (req, res) =
   }
 });
 
-router.post('/enroll', authorizeRoles('student'), (req, res) => {
+router.post('/enroll', authorizeRoles('student'), async (req, res) => {
   try {
     const { course_id } = req.body;
     const courseId = Number(course_id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
-    const course = db.prepare("SELECT id, status FROM courses WHERE id = ?").get(courseId);
+    const course = await db.prepare("SELECT id, status FROM courses WHERE id = ?").get(courseId);
     if (!course || course.status !== 'published') {
       return res.status(400).json({ error: 'Course is not available for registration.' });
     }
-    db.prepare('INSERT OR IGNORE INTO enrollments (student_id, course_id) VALUES (?, ?)').run(req.user.id, courseId);
+    await db.prepare('INSERT OR IGNORE INTO enrollments (student_id, course_id) VALUES (?, ?)').run(req.user.id, courseId);
     logAudit('enroll_course', { courseId }, req.user.id);
     res.json({ message: 'Enrolled successfully' });
   } catch (err) {
@@ -167,12 +169,12 @@ router.post('/enroll', authorizeRoles('student'), (req, res) => {
   }
 });
 
-router.post('/unenroll', authorizeRoles('student'), (req, res) => {
+router.post('/unenroll', authorizeRoles('student'), async (req, res) => {
   try {
     const { course_id } = req.body;
     const courseId = Number(course_id);
     if (!Number.isInteger(courseId) || courseId <= 0) return res.status(400).json({ error: 'Invalid course selection.' });
-    db.prepare('DELETE FROM enrollments WHERE student_id = ? AND course_id = ?').run(req.user.id, courseId);
+    await db.prepare('DELETE FROM enrollments WHERE student_id = ? AND course_id = ?').run(req.user.id, courseId);
     logAudit('unenroll_course', { courseId }, req.user.id);
     res.json({ message: 'Unenrolled successfully' });
   } catch (err) {
@@ -180,9 +182,9 @@ router.post('/unenroll', authorizeRoles('student'), (req, res) => {
   }
 });
 
-router.get('/enrolled', authorizeRoles('student'), (req, res) => {
+router.get('/enrolled', authorizeRoles('student'), async (req, res) => {
   try {
-    const courses = db.prepare(`
+    const courses = await db.prepare(`
       SELECT c.*, u.full_name as lecturer_name FROM courses c
       JOIN enrollments e ON e.course_id = c.id
       LEFT JOIN users u ON u.id = c.lecturer_id

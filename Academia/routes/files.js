@@ -4,7 +4,8 @@ const fs = require('fs');
 const { logAudit } = require('../utils/security');
 
 const router = express.Router();
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 router.get('/:filename', (req, res) => {
   try {

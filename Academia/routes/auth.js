@@ -22,27 +22,27 @@ const LOCKOUT_MINUTES = 15;
 const RESET_EXPIRY_HOURS = 1;
 const MFA_EXPIRY_MINUTES = 5;
 
-function recordAttempt(identifier, ip, success) {
-  db.prepare('INSERT INTO login_attempts (identifier, ip_address, success) VALUES (?, ?, ?)').run(identifier, ip, success ? 1 : 0);
+async function recordAttempt(identifier, ip, success) {
+  await db.prepare('INSERT INTO login_attempts (identifier, ip_address, success) VALUES (?, ?, ?)').run(identifier, ip, success ? 1 : 0);
   if (success) {
-    db.prepare('DELETE FROM login_attempts WHERE identifier = ? AND success = 1').run(identifier);
+    await db.prepare('DELETE FROM login_attempts WHERE identifier = ? AND success = 1').run(identifier);
   }
 }
 
-function getFailedAttempts(identifier) {
-  const row = db.prepare(`
+async function getFailedAttempts(identifier) {
+  const row = await db.prepare(`
     SELECT COUNT(*) as count FROM login_attempts
     WHERE identifier = ? AND success = 0 AND attempted_at > datetime('now', ?)
   `).get(identifier, `-${LOCKOUT_MINUTES} minutes`);
   return row.count;
 }
 
-function isLockedOut(identifier) {
-  return getFailedAttempts(identifier) >= MAX_ATTEMPTS;
+async function isLockedOut(identifier) {
+  return (await getFailedAttempts(identifier)) >= MAX_ATTEMPTS;
 }
 
-function getLockoutRemaining(identifier) {
-  const row = db.prepare(`
+async function getLockoutRemaining(identifier) {
+  const row = await db.prepare(`
     SELECT MAX(attempted_at) as last_attempt FROM login_attempts
     WHERE identifier = ? AND success = 0
   `).get(identifier);
@@ -154,23 +154,23 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Matric number is required for students.' });
     }
 
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(safeEmail);
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(safeEmail);
     if (existing) return res.status(400).json({ error: 'Email already registered.' });
 
     if (safeRole === 'student' && safeMatric) {
-      const existingMatric = db.prepare('SELECT id FROM users WHERE matric_number = ?').get(safeMatric);
+      const existingMatric = await db.prepare('SELECT id FROM users WHERE matric_number = ?').get(safeMatric);
       if (existingMatric) return res.status(400).json({ error: 'Matric number already registered.' });
     }
 
     const hashedPassword = bcrypt.hashSync(password, 12);
-    const result = db.prepare(
+    const result = await db.prepare(
       'INSERT INTO users (full_name, email, password, role, school, department, level, matric_number, identity_code, mfa_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(safeFullName, safeEmail, hashedPassword, safeRole, safeSchool, safeDepartment || null, safeLevel || null, safeMatric || null, null, safeRole === 'student' ? 0 : 1);
 
     const identityCode = generateIdentityCode(safeRole, Number(result.lastInsertRowid));
-    db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(identityCode, result.lastInsertRowid);
+    await db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(identityCode, result.lastInsertRowid);
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, full_name: user.full_name, school: user.school },
       process.env.JWT_SECRET,
@@ -197,8 +197,8 @@ router.post('/login', async (req, res) => {
 
     const ip = req.ip || req.connection.remoteAddress;
 
-    if (isLockedOut(lookup)) {
-      const remaining = getLockoutRemaining(lookup);
+    if (await isLockedOut(lookup)) {
+      const remaining = await getLockoutRemaining(lookup);
       return res.status(429).json({
         error: `Account temporarily locked due to too many failed attempts. Try again in ${remaining} minute${remaining !== 1 ? 's' : ''}.`,
         locked: true,
@@ -206,7 +206,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    let user = db.prepare(`
+    let user = await db.prepare(`
       SELECT * FROM users
       WHERE email = ? OR matric_number = ? OR identity_code = ?
     `).get(lookup, lookup, lookup);
@@ -217,8 +217,8 @@ router.post('/login', async (req, res) => {
 
     if (!user && isGmail) {
       if (password !== DEFAULT_PASSWORD) {
-        recordAttempt(lookup, ip, false);
-        const remaining = MAX_ATTEMPTS - getFailedAttempts(lookup);
+        await recordAttempt(lookup, ip, false);
+        const remaining = MAX_ATTEMPTS - (await getFailedAttempts(lookup));
         return res.status(401).json({
           error: 'Invalid credentials. ' + (remaining > 0 ? `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` : 'Account locked.'),
           remaining
@@ -229,20 +229,20 @@ router.post('/login', async (req, res) => {
       const fullName = emailName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       const hashedPassword = bcrypt.hashSync(DEFAULT_PASSWORD, 12);
 
-      const result = db.prepare(
+      const result = await db.prepare(
         'INSERT INTO users (full_name, email, password, role, school, department, mfa_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(fullName || 'New User', lookup, hashedPassword, 'student', 'University for Development Studies', null, 0);
 
       const identityCode = generateIdentityCode('student', Number(result.lastInsertRowid));
-      db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(identityCode, result.lastInsertRowid);
+      await db.prepare('UPDATE users SET identity_code = ? WHERE id = ?').run(identityCode, result.lastInsertRowid);
 
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+      user = await db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
       logAudit('auto_registered_gmail', { email: lookup }, user.id);
     }
 
     if (!user) {
-      recordAttempt(lookup, ip, false);
-      const remaining = MAX_ATTEMPTS - getFailedAttempts(lookup);
+      await recordAttempt(lookup, ip, false);
+      const remaining = MAX_ATTEMPTS - (await getFailedAttempts(lookup));
       return res.status(401).json({
         error: 'Invalid credentials. ' + (remaining > 0 ? `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` : 'Account locked.'),
         remaining
@@ -251,20 +251,20 @@ router.post('/login', async (req, res) => {
 
     const expectedPrefix = user.role === 'student' ? 'STU' : 'STA';
     if (user.identity_code && !user.identity_code.startsWith(expectedPrefix)) {
-      recordAttempt(lookup, ip, false);
+      await recordAttempt(lookup, ip, false);
       return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
     if (!bcrypt.compareSync(password, user.password)) {
-      recordAttempt(lookup, ip, false);
-      const remaining = MAX_ATTEMPTS - getFailedAttempts(lookup);
+      await recordAttempt(lookup, ip, false);
+      const remaining = MAX_ATTEMPTS - (await getFailedAttempts(lookup));
       return res.status(401).json({
         error: 'Invalid credentials. ' + (remaining > 0 ? `${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` : 'Account locked.'),
         remaining
       });
     }
 
-    recordAttempt(lookup, ip, true);
+    await recordAttempt(lookup, ip, true);
 
     const smtpConfigured = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
     const requiresMfa = Number(user.mfa_enabled) === 1 && ['lecturer', 'admin'].includes(user.role) && smtpConfigured;
@@ -274,7 +274,7 @@ router.post('/login', async (req, res) => {
       const challengeToken = crypto.randomBytes(20).toString('hex');
       const expiresAt = new Date(Date.now() + MFA_EXPIRY_MINUTES * 60000).toISOString();
 
-      db.prepare('INSERT INTO mfa_tokens (user_id, challenge_token, otp_code, expires_at) VALUES (?, ?, ?, ?)')
+      await db.prepare('INSERT INTO mfa_tokens (user_id, challenge_token, otp_code, expires_at) VALUES (?, ?, ?, ?)')
         .run(user.id, challengeToken, otpCode, expiresAt);
 
       await sendEmail(
@@ -321,7 +321,7 @@ router.post('/verify-mfa', async (req, res) => {
       return res.status(400).json({ error: 'Verification data is incomplete.' });
     }
 
-    const mfaRow = db.prepare('SELECT * FROM mfa_tokens WHERE challenge_token = ? AND used = 0').get(challengeToken);
+    const mfaRow = await db.prepare('SELECT * FROM mfa_tokens WHERE challenge_token = ? AND used = 0').get(challengeToken);
     if (!mfaRow) return res.status(400).json({ error: 'Invalid or expired MFA challenge.' });
 
     const expiresAt = new Date(mfaRow.expires_at);
@@ -333,10 +333,10 @@ router.post('/verify-mfa', async (req, res) => {
       return res.status(400).json({ error: 'Incorrect verification code.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(mfaRow.user_id);
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(mfaRow.user_id);
     if (!user) return res.status(400).json({ error: 'User not found.' });
 
-    db.prepare('UPDATE mfa_tokens SET used = 1 WHERE id = ?').run(mfaRow.id);
+    await db.prepare('UPDATE mfa_tokens SET used = 1 WHERE id = ?').run(mfaRow.id);
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, full_name: user.full_name, school: user.school },
@@ -360,7 +360,7 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid email address.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.json({ message: 'If that email exists in the system, a password reset link has been sent.' });
     }
@@ -368,7 +368,7 @@ router.post('/forgot-password', async (req, res) => {
     const token = generateToken();
     const expiresAt = new Date(Date.now() + RESET_EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
 
-    db.prepare('INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)')
+    await db.prepare('INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)')
       .run(user.id, token, expiresAt);
 
     await sendEmail(
@@ -384,11 +384,11 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
-router.get('/validate-reset-token', (req, res) => {
+router.get('/validate-reset-token', async (req, res) => {
   const token = normalizeText(req.query.token || '');
   if (!token) return res.status(400).json({ error: 'Reset token missing.' });
 
-  const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0').get(token);
+  const row = await db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0').get(token);
   if (!row) return res.status(400).json({ error: 'This reset link is invalid or has already been used.' });
 
   const expiresAt = new Date(row.expires_at);
@@ -413,7 +413,7 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.' });
     }
 
-    const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0').get(resetToken);
+    const row = await db.prepare('SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0').get(resetToken);
     if (!row) return res.status(400).json({ error: 'This reset link is invalid or has already been used.' });
 
     const expiresAt = new Date(row.expires_at);
@@ -421,12 +421,12 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'This reset link has expired.' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id);
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(row.user_id);
     if (!user) return res.status(400).json({ error: 'User not found.' });
 
     const hashedPassword = bcrypt.hashSync(newPassword, 12);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, user.id);
-    db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(resetToken);
+    await db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+    await db.prepare('UPDATE password_reset_tokens SET used = 1 WHERE token = ?').run(resetToken);
 
     logAudit('password_reset_completed', { email: user.email }, user.id);
     res.json({ message: 'Password reset successful. You can now sign in with your new password.' });
@@ -438,7 +438,7 @@ router.post('/reset-password', async (req, res) => {
 router.post('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userRow = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const userRow = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
     if (!userRow) return res.status(404).json({ error: 'User not found.' });
     if (!bcrypt.compareSync(currentPassword || '', userRow.password)) {
@@ -450,7 +450,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     }
 
     const hashedPassword = bcrypt.hashSync(newPassword, 12);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
+    await db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
     logAudit('password_changed', { email: userRow.email }, req.user.id);
     res.json({ message: 'Password changed successfully. You can now enable MFA from this modal.' });
   } catch (err) {
@@ -460,14 +460,14 @@ router.post('/change-password', authenticateToken, async (req, res) => {
 
 router.post('/request-mfa-setup', authenticateToken, async (req, res) => {
   try {
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const user = await db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found.' });
 
     const otpCode = String(crypto.randomInt(100000, 999999));
     const challengeToken = crypto.randomBytes(20).toString('hex');
     const expiresAt = new Date(Date.now() + MFA_EXPIRY_MINUTES * 60000).toISOString();
 
-    db.prepare('INSERT INTO mfa_tokens (user_id, challenge_token, otp_code, expires_at) VALUES (?, ?, ?, ?)')
+    await db.prepare('INSERT INTO mfa_tokens (user_id, challenge_token, otp_code, expires_at) VALUES (?, ?, ?, ?)')
       .run(user.id, challengeToken, otpCode, expiresAt);
 
     await sendEmail(
@@ -493,7 +493,7 @@ router.post('/confirm-mfa-setup', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Verification data is incomplete.' });
     }
 
-    const mfaRow = db.prepare('SELECT * FROM mfa_tokens WHERE challenge_token = ? AND used = 0').get(challengeToken);
+    const mfaRow = await db.prepare('SELECT * FROM mfa_tokens WHERE challenge_token = ? AND used = 0').get(challengeToken);
     if (!mfaRow) return res.status(400).json({ error: 'Invalid or expired MFA challenge.' });
 
     const expiresAt = new Date(mfaRow.expires_at);
@@ -505,8 +505,8 @@ router.post('/confirm-mfa-setup', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Incorrect verification code.' });
     }
 
-    db.prepare('UPDATE mfa_tokens SET used = 1 WHERE id = ?').run(mfaRow.id);
-    db.prepare('UPDATE users SET mfa_enabled = 1 WHERE id = ?').run(req.user.id);
+    await db.prepare('UPDATE mfa_tokens SET used = 1 WHERE id = ?').run(mfaRow.id);
+    await db.prepare('UPDATE users SET mfa_enabled = 1 WHERE id = ?').run(req.user.id);
 
     logAudit('mfa_setup_completed', { email: req.user.email, role: req.user.role }, req.user.id);
     res.json({ message: 'MFA has been enabled successfully for your account.' });
@@ -531,13 +531,13 @@ router.post('/logout', (req, res) => {
   }
 });
 
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, identity_code FROM users WHERE id = ?').get(decoded.id);
+    const user = await db.prepare('SELECT id, full_name, email, role, school, department, level, matric_number, identity_code FROM users WHERE id = ?').get(decoded.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (err) {

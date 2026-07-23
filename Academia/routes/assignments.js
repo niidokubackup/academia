@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
@@ -12,7 +13,8 @@ const {
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, 'sub-' + Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
@@ -33,7 +35,7 @@ function fileFilter(req, file, cb) {
 
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 }, fileFilter });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     let query, params = [];
 
@@ -70,14 +72,14 @@ router.get('/', (req, res) => {
       `;
     }
 
-    const assignments = db.prepare(query).all(...params);
+    const assignments = await db.prepare(query).all(...params);
     res.json(assignments);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/midsems', (req, res) => {
+router.get('/midsems', async (req, res) => {
   try {
     let query, params = [];
 
@@ -109,14 +111,14 @@ router.get('/midsems', (req, res) => {
       `;
     }
 
-    const exams = db.prepare(query).all(...params);
+    const exams = await db.prepare(query).all(...params);
     res.json(exams);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), (req, res) => {
+router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), async (req, res) => {
   try {
     const { course_id, title, description, due_date, total_marks } = req.body;
     const safeTitle = sanitizeText(title);
@@ -130,7 +132,7 @@ router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), (req, 
     if (!safeTitle || !dueDate) return res.status(400).json({ error: 'Assignment title and due date are required.' });
     if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
-    const result = db.prepare(
+    const result = await db.prepare(
       'INSERT INTO assignments (course_id, title, description, due_date, total_marks, attachment_path, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).run(courseId, safeTitle, safeDescription, dueDate, totalMarks, filePath, req.user.id);
 
@@ -141,7 +143,7 @@ router.post('/', authorizeRoles('lecturer'), upload.single('attachment'), (req, 
   }
 });
 
-router.post('/midsem', authorizeRoles('lecturer'), (req, res) => {
+router.post('/midsem', authorizeRoles('lecturer'), async (req, res) => {
   try {
     const { course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions } = req.body;
     const safeTitle = sanitizeText(title);
@@ -158,7 +160,7 @@ router.post('/midsem', authorizeRoles('lecturer'), (req, res) => {
     if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return res.status(400).json({ error: 'Duration must be a positive number.' });
     if (!Number.isInteger(totalMarks) || totalMarks <= 0) return res.status(400).json({ error: 'Total marks must be a positive number.' });
 
-    const result = db.prepare(
+    const result = await db.prepare(
       'INSERT INTO midsem_exams (course_id, title, description, exam_date, duration_minutes, total_marks, venue, instructions, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(courseId, safeTitle, safeDescription, examDate, durationMinutes, totalMarks, safeVenue, safeInstructions, req.user.id);
 
@@ -169,7 +171,7 @@ router.post('/midsem', authorizeRoles('lecturer'), (req, res) => {
   }
 });
 
-router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('file'), (req, res) => {
+router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('file'), async (req, res) => {
   try {
     const assignmentId = Number(req.params.assignmentId);
     const filePath = req.file ? `/api/files/${req.file.filename}` : null;
@@ -178,10 +180,10 @@ router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('f
 
     if (!Number.isInteger(assignmentId) || assignmentId <= 0) return res.status(400).json({ error: 'Invalid assignment reference.' });
 
-    const existing = db.prepare('SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?').get(assignmentId, req.user.id);
+    const existing = await db.prepare('SELECT id FROM submissions WHERE assignment_id = ? AND student_id = ?').get(assignmentId, req.user.id);
     if (existing) return res.status(400).json({ error: 'Already submitted.' });
 
-    db.prepare(
+    await db.prepare(
       'INSERT INTO submissions (assignment_id, student_id, file_path, notes) VALUES (?, ?, ?, ?)'
     ).run(assignmentId, req.user.id, filePath, safeNotes);
 
@@ -192,9 +194,9 @@ router.post('/submit/:assignmentId', authorizeRoles('student'), upload.single('f
   }
 });
 
-router.get('/submissions/:assignmentId', authorizeRoles('lecturer', 'admin'), (req, res) => {
+router.get('/submissions/:assignmentId', authorizeRoles('lecturer', 'admin'), async (req, res) => {
   try {
-    const submissions = db.prepare(`
+    const submissions = await db.prepare(`
       SELECT s.*, u.full_name, u.matric_number, u.email
       FROM submissions s JOIN users u ON u.id = s.student_id
       WHERE s.assignment_id = ?
@@ -205,7 +207,7 @@ router.get('/submissions/:assignmentId', authorizeRoles('lecturer', 'admin'), (r
   }
 });
 
-router.put('/grade/:submissionId', authorizeRoles('lecturer', 'admin'), (req, res) => {
+router.put('/grade/:submissionId', authorizeRoles('lecturer', 'admin'), async (req, res) => {
   try {
     const submissionId = Number(req.params.submissionId);
     const { grade, feedback } = req.body;
@@ -215,7 +217,7 @@ router.put('/grade/:submissionId', authorizeRoles('lecturer', 'admin'), (req, re
     if (!Number.isInteger(submissionId) || submissionId <= 0) return res.status(400).json({ error: 'Invalid submission reference.' });
     if (!Number.isInteger(numericGrade) || numericGrade < 0 || numericGrade > 100) return res.status(400).json({ error: 'Grade must be between 0 and 100.' });
 
-    db.prepare('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?').run(numericGrade, safeFeedback, submissionId);
+    await db.prepare('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?').run(numericGrade, safeFeedback, submissionId);
     logAudit('grade_submission', { submissionId, grade: numericGrade }, req.user.id);
     res.json({ message: 'Graded successfully' });
   } catch (err) {

@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const db = require('../models/database');
 
 function sanitizeText(value) {
   if (typeof value !== 'string') return '';

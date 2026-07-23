@@ -19,7 +19,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const fs = require('fs');
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const writableBaseDir = isServerless ? '/tmp' : __dirname;
+const UPLOAD_DIR = path.join(writableBaseDir, 'uploads');
 try { fs.mkdirSync(UPLOAD_DIR, { recursive: true }); } catch (e) {}
 
 function pageAuth(req, res, next) {
@@ -125,9 +127,16 @@ app.use((err, req, res, next) => {
 
 // Listen only when run directly (not imported by Vercel)
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Academia server running on http://localhost:${PORT}`);
-  });
+  db.initDatabase()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`Academia server running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to initialize database:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

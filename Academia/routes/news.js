@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const db = require('../models/database');
@@ -12,7 +13,8 @@ const {
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOAD_DIR = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(__dirname, '..', 'uploads');
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, 'news-' + Date.now() + '-' + file.originalname.replace(/\s+/g, '_'))
@@ -26,7 +28,7 @@ function imageFilter(req, file, cb) {
 
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: imageFilter });
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { category, search, status: statusFilter } = req.query;
     let query = 'SELECT n.*, u.full_name as author FROM news n JOIN users u ON u.id = n.published_by WHERE 1=1';
@@ -46,16 +48,16 @@ router.get('/', (req, res) => {
     if (search) { query += ' AND (n.title LIKE ? OR n.content LIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
 
     query += ' ORDER BY n.is_pinned DESC, n.created_at DESC';
-    const news = db.prepare(query).all(...params);
+    const news = await db.prepare(query).all(...params);
     res.json(news);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const article = db.prepare(`
+    const article = await db.prepare(`
       SELECT n.*, u.full_name as author FROM news n
       JOIN users u ON u.id = n.published_by WHERE n.id = ?
     `).get(req.params.id);
@@ -66,7 +68,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), (req, res) => {
+router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), async (req, res) => {
   try {
     const { title, content, category, school, is_pinned } = req.body;
     const safeTitle = sanitizeText(title);
@@ -79,7 +81,7 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), (r
     if (!safeTitle || !safeContent) return res.status(400).json({ error: 'News title and content are required.' });
     if (!['announcement', 'event', 'update', 'urgent'].includes(safeCategory)) return res.status(400).json({ error: 'Invalid news category.' });
 
-    const result = db.prepare(
+    const result = await db.prepare(
       'INSERT INTO news (title, content, category, school, image_path, published_by, status, is_pinned) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(safeTitle, safeContent, safeCategory, safeSchool, imagePath, req.user.id, status, is_pinned ? 1 : 0);
 
@@ -90,11 +92,11 @@ router.post('/', authorizeRoles('lecturer', 'admin'), upload.single('image'), (r
   }
 });
 
-router.delete('/:id', authorizeRoles('admin'), (req, res) => {
+router.delete('/:id', authorizeRoles('admin'), async (req, res) => {
   try {
     const newsId = Number(req.params.id);
     if (!Number.isInteger(newsId) || newsId <= 0) return res.status(400).json({ error: 'Invalid article id.' });
-    db.prepare('DELETE FROM news WHERE id = ?').run(newsId);
+    await db.prepare('DELETE FROM news WHERE id = ?').run(newsId);
     logAudit('delete_news', { newsId }, req.user.id);
     res.json({ message: 'Article deleted' });
   } catch (err) {

@@ -67,14 +67,8 @@ async function loadCompilation() {
       <td>${schoolBadge(c.school)}</td>
       <td><span class="badge badge-${c.status==='published'?'success':'warning'}">${c.status}</span></td>
       <td>${c.enrolled_count || 0}</td>
-      <td>
-        ${c.status === 'draft'
-          ? `<button class="btn btn-success btn-sm" onclick="publishCourse(${c.id})">Publish</button>`
-          : `<button class="btn btn-warning btn-sm" onclick="unpublishCourse(${c.id})">Unpublish</button>`}
-        <button class="btn btn-danger btn-sm" onclick="deleteCourse(${c.id})">Delete</button>
-      </td>
     </tr>
-  `).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-secondary)">No courses found</td></tr>';
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--text-secondary)">No courses found</td></tr>';
 }
 
 async function loadNewsApproval() {
@@ -143,28 +137,6 @@ async function deleteUser(id) {
   const res = await apiDelete(`/api/admin/users/${id}`);
   showToast(res.message || res.error, res.error ? 'error' : 'success');
   loadUsers();
-  loadAdminStats();
-}
-
-async function publishCourse(id) {
-  const res = await apiPut(`/api/admin/courses/${id}/publish`);
-  showToast(res.message || res.error, res.error ? 'error' : 'success');
-  loadCompilation();
-  loadAdminStats();
-}
-
-async function unpublishCourse(id) {
-  const res = await apiPut(`/api/admin/courses/${id}/unpublish`);
-  showToast(res.message || res.error, res.error ? 'error' : 'success');
-  loadCompilation();
-  loadAdminStats();
-}
-
-async function deleteCourse(id) {
-  if (!confirm('Delete this course? This cannot be undone.')) return;
-  const res = await apiDelete(`/api/admin/courses/${id}`);
-  showToast(res.message || res.error, res.error ? 'error' : 'success');
-  loadCompilation();
   loadAdminStats();
 }
 
